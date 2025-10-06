@@ -1,5 +1,11 @@
-﻿@tailwind base;
-@tailwind components;
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  @apply bg-slate-50 text-slate-900 transition-colors duration-300;
+  @apply dark:bg-slate-950 dark:text-slate-100;
 @tailwind utilities;
 
 :root {
