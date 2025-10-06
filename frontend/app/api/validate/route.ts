@@ -1,15 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
-import * as XLSX from "xlsx";
 
 const PROJECT_ROOT = path.resolve(process.cwd(), "..");
 const BACKEND_ROOT = path.join(PROJECT_ROOT, "backend");
 const TMP_DIR = path.join(BACKEND_ROOT, "tmp");
 const PYTHON_RUNNER = path.join(BACKEND_ROOT, "python_runner.py");
-const RULES_SHEET_NAME = "ValidationRules";
 
 type AllowedType = "list" | "instruction";
 
@@ -39,9 +37,10 @@ async function saveUploadedFile(file: File): Promise<{ inputPath: string; baseNa
   return { inputPath, baseName };
 }
 
-function runPythonValidation(inputPath: string, outputDir: string): Promise<{ stdout: string; stderr: string; code: number }> {
+function runPythonValidation(inputPath: string, outputDir: string, rulesPath?: string): Promise<{ stdout: string; stderr: string; code: number }> {
   return new Promise((resolve) => {
-    const python = spawn("python", [PYTHON_RUNNER, inputPath, outputDir], {
+    const args = rulesPath ? [PYTHON_RUNNER, inputPath, outputDir, rulesPath] : [PYTHON_RUNNER, inputPath, outputDir];
+    const python = spawn("python", args, {
       cwd: PROJECT_ROOT,
       env: {
         ...process.env,
@@ -140,41 +139,6 @@ function sanitizeRules(input: unknown): RulePayload[] {
     .filter((value): value is RulePayload => value !== null);
 }
 
-function buildAllowedCell(rule: RulePayload): string {
-  if (rule.allowedType === "instruction") {
-    return rule.allowedInstruction;
-  }
-  return rule.allowedValues.length > 0 ? `VALUE=${rule.allowedValues.join(";")}` : "";
-}
-
-function rewriteValidationSheet(filePath: string, rules: RulePayload[]): void {
-  const workbook = XLSX.readFile(filePath);
-  const header = [
-    ["Field", "Checked", "Required", "MinLength", "MaxLength", "AllowedValues", "Pattern", "CustomRule"],
-  ];
-  const rows = rules.map((rule) => [
-    rule.field,
-    rule.checked ? 1 : 0,
-    rule.required ? 1 : 0,
-    rule.minLength ?? "",
-    rule.maxLength ?? "",
-    buildAllowedCell(rule),
-    rule.pattern,
-    rule.customRule,
-  ]);
-  const sheet = XLSX.utils.aoa_to_sheet([...header, ...rows]);
-
-  const existingIndex = workbook.SheetNames.indexOf(RULES_SHEET_NAME);
-  if (existingIndex >= 0) {
-    workbook.SheetNames.splice(existingIndex, 1);
-  }
-
-  workbook.Sheets[RULES_SHEET_NAME] = sheet;
-  workbook.SheetNames.push(RULES_SHEET_NAME);
-
-  XLSX.writeFile(workbook, filePath);
-}
-
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const formData = await req.formData();
@@ -187,33 +151,50 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { inputPath, baseName } = await saveUploadedFile(file);
 
     const rawRules = formData.get("rules");
-    if (typeof rawRules === "string") {
-      try {
-        const parsed = JSON.parse(rawRules);
-        const sanitized = sanitizeRules(parsed);
-        rewriteValidationSheet(inputPath, sanitized);
-      } catch (error) {
-        console.error("Invalid rules payload", error);
-        return new NextResponse("Le format des règles est invalide", { status: 400 });
+    let rulesPath: string | null = null;
+    try {
+      if (typeof rawRules === "string") {
+        const trimmedRules = rawRules.trim();
+        if (trimmedRules.length > 0) {
+          try {
+            const parsed = JSON.parse(trimmedRules);
+            const sanitized = sanitizeRules(parsed);
+            const rulesFile = `${randomUUID()}-rules.json`;
+            rulesPath = path.join(TMP_DIR, rulesFile);
+            await writeFile(rulesPath, JSON.stringify(sanitized), "utf-8");
+          } catch (error) {
+            console.error("Invalid rules payload", error);
+            return new NextResponse("Le format des règles est invalide", { status: 400 });
+          }
+        }
+      }
+
+      const result = await runPythonValidation(inputPath, TMP_DIR, rulesPath ?? undefined);
+
+      if (result.code !== 0) {
+        const message = result.stderr || result.stdout || "La validation a échoué";
+        return NextResponse.json({ success: false, message }, { status: 500 });
+      }
+
+      const reviewName = computeOutputName(baseName);
+      return NextResponse.json({
+        success: true,
+        message: "Validation terminée. Rapport disponible.",
+        downloadUrl: `/api/reports/${encodeURIComponent(reviewName)}`,
+      });
+    } finally {
+      if (rulesPath) {
+        await rm(rulesPath, { force: true }).catch(() => undefined);
       }
     }
-
-    const result = await runPythonValidation(inputPath, TMP_DIR);
-
-    if (result.code !== 0) {
-      const message = result.stderr || result.stdout || "La validation a échoué";
-      return NextResponse.json({ success: false, message }, { status: 500 });
-    }
-
-    const reviewName = computeOutputName(baseName);
-    return NextResponse.json({
-      success: true,
-      message: "Validation terminée. Rapport disponible.",
-      downloadUrl: `/api/reports/${encodeURIComponent(reviewName)}`,
-    });
   } catch (error) {
     console.error(error);
     return new NextResponse("Erreur interne du serveur", { status: 500 });
   }
 }
+
+
+
+
+
 

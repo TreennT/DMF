@@ -114,9 +114,9 @@ def load_template(input_file: str) -> pd.DataFrame:
 
 
 
-def load_validation_rules(input_file: str) -> tuple[dict[str, ValidationRule], dict[str, pd.DataFrame]]:
+def load_validation_rules(input_file: str, override: Optional[pd.DataFrame] = None) -> tuple[dict[str, ValidationRule], dict[str, pd.DataFrame]]:
+    rules_df = override if override is not None else pd.read_excel(input_file, sheet_name=RULES_SHEET)
 
-    rules_df = pd.read_excel(input_file, sheet_name=RULES_SHEET)
 
     reference_cache: dict[str, pd.DataFrame] = {}
 
@@ -740,7 +740,7 @@ def write_output(
 
 
 
-def generate_result_from_excel(input_file: str, output_dir: str) -> str:
+def generate_result_from_excel(input_file: str, output_dir: str, rules_override: Optional[list[dict[str, object]]] = None) -> str:
 
     if not os.path.exists(input_file):
 
@@ -750,7 +750,54 @@ def generate_result_from_excel(input_file: str, output_dir: str) -> str:
 
     template_df = load_template(input_file)
 
-    rules, reference_cache = load_validation_rules(input_file)
+    override_df: Optional[pd.DataFrame] = None
+    if rules_override is not None:
+        rows: list[dict[str, object]] = []
+        for rule in rules_override:
+            field = str(rule.get("field", "")).strip()
+            if not field:
+                continue
+
+            allowed_type = str(rule.get("allowedType", "instruction")).lower()
+            raw_allowed_values = rule.get("allowedValues") or []
+            if isinstance(raw_allowed_values, (str, bytes)):
+                allowed_values_iter = [str(raw_allowed_values)]
+            else:
+                allowed_values_iter = [str(value).strip() for value in raw_allowed_values if str(value).strip()]
+
+            joined_values = ";".join(allowed_values_iter)
+            if allowed_type == "list" and joined_values:
+                allowed_cell = f"VALUE={joined_values}"
+            elif allowed_type == "list":
+                allowed_cell = ""
+            else:
+                allowed_cell = str(rule.get("allowedInstruction", "") or "").strip()
+
+            min_length = rule.get("minLength")
+            max_length = rule.get("maxLength")
+
+            rows.append(
+                {
+                    "Field": field,
+                    "Checked": 1 if bool(rule.get("checked")) else 0,
+                    "Required": 1 if bool(rule.get("required")) else 0,
+                    "MinLength": min_length if min_length is not None else "",
+                    "MaxLength": max_length if max_length is not None else "",
+                    "AllowedValues": allowed_cell,
+                    "Pattern": str(rule.get("pattern", "") or "").strip(),
+                    "CustomRule": str(rule.get("customRule", "") or "").strip(),
+                }
+            )
+
+        if rows:
+            override_df = pd.DataFrame(
+                rows,
+                columns=["Field", "Checked", "Required", "MinLength", "MaxLength", "AllowedValues", "Pattern", "CustomRule"],
+            )
+
+    rules, reference_cache = load_validation_rules(input_file, override_df)
+
+
 
     unique_counts = build_unique_counts(template_df, rules)
 
@@ -830,5 +877,7 @@ def main() -> None:
 if __name__ == "__main__":
 
     main()
+
+
 
 
