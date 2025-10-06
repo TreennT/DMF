@@ -1,7 +1,17 @@
-﻿import "./globals.css";
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
-
+export default function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <html lang="fr" suppressHydrationWarning>
+      <body className="min-h-screen bg-slate-50 font-sans antialiased transition-colors dark:bg-slate-900 dark:text-slate-100">
+        {children}
+      </body>
+    </html>
+  );
+}
+
 export const metadata: Metadata = {
   title: "Validation DMF",
   description: "Interface pour visualiser et lancer la validation DMF",
