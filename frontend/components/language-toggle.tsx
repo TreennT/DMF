@@ -1,18 +1,28 @@
 "use client";
 
+import Image from "next/image";
 import { useLanguage } from "./language-provider";
 
-const FLAGS = {
-  fr: "🇫🇷",
-  en: "🇬🇧",
-} as const;
+type LanguageCode = "fr" | "en";
+
+const FLAGS: Record<LanguageCode, { src: string; alt: string }> = {
+  fr: {
+    src: "/france.png",
+    alt: "French flag",
+  },
+  en: {
+    src: "/united-kingdom.png",
+    alt: "United Kingdom flag",
+  },
+};
 
 export function LanguageToggle() {
   const { language, setLanguage, content } = useLanguage();
   const { languageToggle } = content;
 
-  const nextLanguage = language === "fr" ? "en" : "fr";
+  const nextLanguage: LanguageCode = language === "fr" ? "en" : "fr";
   const { title, label } = languageToggle.languages[nextLanguage];
+  const flag = FLAGS[nextLanguage];
 
   return (
     <button
@@ -22,7 +32,7 @@ export function LanguageToggle() {
       aria-label={title}
       title={title}
     >
-      <span aria-hidden>{FLAGS[nextLanguage]}</span>
+      <Image src={flag.src} alt={flag.alt} width={24} height={24} priority />
       <span className="sr-only">{label}</span>
     </button>
   );

@@ -9,6 +9,10 @@ const BACKEND_ROOT = path.join(PROJECT_ROOT, "backend");
 const TMP_DIR = path.join(BACKEND_ROOT, "tmp");
 const PYTHON_RUNNER = path.join(BACKEND_ROOT, "python_runner.py");
 
+const PYTHON_CANDIDATES = [process.env.PYTHON_BIN, "python", "python3"].filter(
+  (candidate): candidate is string => Boolean(candidate && candidate.trim().length > 0),
+);
+
 type AllowedType = "list" | "instruction";
 
 type RulePayload = {
@@ -37,10 +41,9 @@ async function saveUploadedFile(file: File): Promise<{ inputPath: string; baseNa
   return { inputPath, baseName };
 }
 
-function runPythonValidation(inputPath: string, outputDir: string, rulesPath?: string): Promise<{ stdout: string; stderr: string; code: number }> {
-  return new Promise((resolve) => {
-    const args = rulesPath ? [PYTHON_RUNNER, inputPath, outputDir, rulesPath] : [PYTHON_RUNNER, inputPath, outputDir];
-    const python = spawn("python", args, {
+function spawnPythonProcess(command: string, args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
+  return new Promise((resolve, reject) => {
+    const python = spawn(command, args, {
       cwd: PROJECT_ROOT,
       env: {
         ...process.env,
@@ -59,16 +62,42 @@ function runPythonValidation(inputPath: string, outputDir: string, rulesPath?: s
       stderr += data.toString();
     });
 
+    python.on("error", (error) => {
+      reject(error);
+    });
+
     python.on("close", (code) => {
       resolve({ stdout, stderr, code: code ?? 1 });
     });
   });
 }
 
+async function runPythonValidation(inputPath: string, outputDir: string, rulesPath?: string): Promise<{ stdout: string; stderr: string; code: number }> {
+  const args = rulesPath ? [PYTHON_RUNNER, inputPath, outputDir, rulesPath] : [PYTHON_RUNNER, inputPath, outputDir];
+
+  let lastError: NodeJS.ErrnoException | null = null;
+
+  for (const command of PYTHON_CANDIDATES) {
+    try {
+      return await spawnPythonProcess(command, args);
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+        lastError = error as NodeJS.ErrnoException;
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  throw Object.assign(new Error("Unable to locate a Python interpreter."), { code: "ENOENT" });
+}
+
 function computeOutputName(baseName: string): string {
-  return baseName.toLowerCase().endsWith(".xlsx")
-    ? `${baseName.slice(0, -5)} review.xlsx`
-    : baseName;
+  return baseName.toLowerCase().endsWith(".xlsx") ? `${baseName.slice(0, -5)} review.xlsx` : baseName;
 }
 
 function normalizeBoolean(value: unknown): boolean {
@@ -145,7 +174,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return new NextResponse("Aucun fichier reçu", { status: 400 });
+      return new NextResponse("Aucun fichier recu", { status: 400 });
     }
 
     const { inputPath, baseName } = await saveUploadedFile(file);
@@ -164,22 +193,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             await writeFile(rulesPath, JSON.stringify(sanitized), "utf-8");
           } catch (error) {
             console.error("Invalid rules payload", error);
-            return new NextResponse("Le format des règles est invalide", { status: 400 });
+            return new NextResponse("Le format des regles est invalide", { status: 400 });
           }
         }
       }
 
-      const result = await runPythonValidation(inputPath, TMP_DIR, rulesPath ?? undefined);
+      let result;
+      try {
+        result = await runPythonValidation(inputPath, TMP_DIR, rulesPath ?? undefined);
+      } catch (error) {
+        console.error("Failed to start Python validation", error);
+        const code = typeof error === "object" && error !== null && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
+        const message = code === "ENOENT" ? "Python n'est pas disponible sur le serveur de validation." : "Echec lors du lancement du moteur Python.";
+        return NextResponse.json({ success: false, message }, { status: 500 });
+      }
 
       if (result.code !== 0) {
-        const message = result.stderr || result.stdout || "La validation a échoué";
+        const message = result.stderr || result.stdout || "La validation a echoue";
         return NextResponse.json({ success: false, message }, { status: 500 });
       }
 
       const reviewName = computeOutputName(baseName);
       return NextResponse.json({
         success: true,
-        message: "Validation terminée. Rapport disponible.",
+        message: "Validation terminee. Rapport disponible.",
         downloadUrl: `/api/reports/${encodeURIComponent(reviewName)}`,
       });
     } finally {
@@ -192,9 +229,3 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return new NextResponse("Erreur interne du serveur", { status: 500 });
   }
 }
-
-
-
-
-
-
