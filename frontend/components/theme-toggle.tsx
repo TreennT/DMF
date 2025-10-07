@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useLanguage } from "./language-provider";
+
 type Theme = "light" | "dark";
 
 function SunIcon({ className }: { className?: string }) {
@@ -41,9 +43,15 @@ function MoonIcon({ className }: { className?: string }) {
   );
 }
 
-export function ThemeToggle() {
+type ThemeToggleProps = {
+  className?: string;
+};
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
+  const { content } = useLanguage();
+  const { themeToggle } = content;
 
   useEffect(() => {
     const stored = window.localStorage.getItem("dmf-theme");
@@ -70,13 +78,22 @@ export function ThemeToggle() {
 
   const isDark = theme === "dark";
 
+  const buttonClassName = [
+    "flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/80 text-slate-700 shadow-sm backdrop-blur-md transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const label = isDark ? themeToggle.toLight : themeToggle.toDark;
+
   return (
     <button
       type="button"
       onClick={toggleTheme}
-      className="fixed right-6 top-6 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/80 shadow-sm backdrop-blur-md transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-900/80"
-      title={isDark ? "Passer au theme clair" : "Passer au theme sombre"}
-      aria-label={isDark ? "Passer au theme clair" : "Passer au theme sombre"}
+      className={buttonClassName}
+      title={label}
+      aria-label={label}
     >
       {isDark ? <SunIcon className="h-5 w-5 text-amber-400" /> : <MoonIcon className="h-5 w-5 text-slate-600 dark:text-slate-200" />}
     </button>
