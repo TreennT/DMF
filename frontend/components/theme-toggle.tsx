@@ -64,33 +64,21 @@ export function ThemeToggle() {
     window.localStorage.setItem("dmf-theme", theme);
   }, [mounted, theme]);
 
-  const handleSetTheme = (nextTheme: Theme) => {
-    if (nextTheme === theme) return;
-    setTheme(nextTheme);
+  const toggleTheme = () => {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
   };
 
+  const isDark = theme === "dark";
+
   return (
-    <div className="fixed right-6 top-6 z-50 flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/80">
-      <button
-        type="button"
-        onClick={() => handleSetTheme("light")}
-        className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${theme === "light" ? "bg-indigo-500 text-white shadow" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80"}`}
-        aria-pressed={theme === "light"}
-        title="Activer le thème clair"
-      >
-        <SunIcon className="h-4 w-4" />
-        <span className="hidden sm:inline">Clair</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => handleSetTheme("dark")}
-        className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${theme === "dark" ? "bg-indigo-500 text-white shadow" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80"}`}
-        aria-pressed={theme === "dark"}
-        title="Activer le thème sombre"
-      >
-        <MoonIcon className="h-4 w-4" />
-        <span className="hidden sm:inline">Sombre</span>
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={toggleTheme}
+      className="fixed right-6 top-6 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/80 shadow-sm backdrop-blur-md transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-900/80"
+      title={isDark ? "Passer au theme clair" : "Passer au theme sombre"}
+      aria-label={isDark ? "Passer au theme clair" : "Passer au theme sombre"}
+    >
+      {isDark ? <SunIcon className="h-5 w-5 text-amber-400" /> : <MoonIcon className="h-5 w-5 text-slate-600 dark:text-slate-200" />}
+    </button>
   );
 }

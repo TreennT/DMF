@@ -23,17 +23,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  return (
-    <html lang="fr">
-      <body className="min-h-screen bg-slate-50">{children}</body>
-    </html>
-  );
-}
