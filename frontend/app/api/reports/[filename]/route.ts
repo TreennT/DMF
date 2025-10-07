@@ -1,9 +1,13 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import { NextRequest, NextResponse } from "next/server";
 
 const PROJECT_ROOT = path.resolve(process.cwd(), "..");
-const TMP_DIR = path.join(PROJECT_ROOT, "backend", "tmp");
+const TMP_DIR = path.join(
+  process.env.VALIDATION_TMP_DIR ?? tmpdir(),
+  "dmf-validator",
+);
 
 export async function GET(
   _req: NextRequest,
