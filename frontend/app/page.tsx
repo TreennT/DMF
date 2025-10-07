@@ -3,9 +3,10 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 
-const truthyValues = new Set(["true", "1", "yes", "oui", "y", "x"]);
+import { useLanguage } from "../components/language-provider";
+import type { Translation } from "../components/language-provider";
 
-const DEFAULT_STATUS = "Aucun fichier importé. Déposez un template Excel ou créez vos règles manuellement.";
+const truthyValues = new Set(["true", "1", "yes", "oui", "y", "x"]);
 
 type AllowedType = "list" | "instruction";
 
@@ -35,6 +36,65 @@ type RulePayload = {
   pattern: string;
   customRule: string;
 };
+
+type StatusState =
+  | { type: "default" }
+  | { type: "awaiting" }
+  | { type: "newRule" }
+  | { type: "rulesUpdated" }
+  | { type: "analyzing"; filename: string }
+  | { type: "analyzed" }
+  | { type: "importedTemplate" }
+  | { type: "importedNoHeaders" }
+  | { type: "readError" }
+  | { type: "validating" }
+  | { type: "validationError"; message: string }
+  | { type: "validationFailed" }
+  | { type: "validationSuccess" }
+  | { type: "networkError" }
+  | { type: "custom"; message: string };
+
+function resolveStatusMessage(
+  status: StatusState,
+  statuses: Translation["statuses"],
+): string {
+  switch (status.type) {
+    case "default":
+      return statuses.default;
+    case "awaiting":
+      return statuses.awaiting;
+    case "newRule":
+      return statuses.newRule;
+    case "rulesUpdated":
+      return statuses.rulesUpdated;
+    case "analyzing":
+      return statuses.analyzing(status.filename);
+    case "analyzed":
+      return statuses.analyzed;
+    case "importedTemplate":
+      return statuses.importedTemplate;
+    case "importedNoHeaders":
+      return statuses.importedNoHeaders;
+    case "readError":
+      return statuses.readError;
+    case "validating":
+      return statuses.validating;
+    case "validationError":
+      return statuses.validationError(status.message);
+    case "validationFailed":
+      return statuses.validationFailed;
+    case "validationSuccess":
+      return statuses.validationSuccess;
+    case "networkError":
+      return statuses.networkError;
+    case "custom":
+      return status.message;
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
+  }
+}
 
 function createId(): string {
   if (typeof globalThis.crypto?.randomUUID === "function") {
@@ -185,24 +245,29 @@ function extractTemplateFields(sheet?: XLSX.WorkSheet): string[] {
 }
 
 export default function HomePage() {
+  const { content } = useLanguage();
+  const { hero, rules: rulesText, footer, statuses } = content;
+
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<string>(DEFAULT_STATUS);
+  const [status, setStatus] = useState<StatusState>({ type: "default" });
   const [reportUrl, setReportUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [rulesEdited, setRulesEdited] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const statusMessage = resolveStatusMessage(status, statuses);
+
   const hasMissingField = useMemo(() => rules.some((rule) => !rule.field.trim()), [rules]);
 
-  function markRulesEdited(message?: string) {
+  function markRulesEdited(nextStatus: StatusState = { type: "awaiting" }) {
     setRulesEdited(true);
     if (!isSubmitting) {
-      setStatus(message ?? "Règles personnalisées en attente de validation.");
+      setStatus(nextStatus);
     }
   }
 
-  function resetSelection(message?: string) {
+  function resetSelection(nextStatus: StatusState = { type: "default" }) {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -210,7 +275,7 @@ export default function HomePage() {
     setRules([]);
     setRulesEdited(false);
     setReportUrl(null);
-    setStatus(message ?? DEFAULT_STATUS);
+    setStatus(nextStatus);
   }
 
   function updateRule(id: string, updates: Partial<RuleRow>) {
@@ -239,12 +304,12 @@ export default function HomePage() {
 
   function addRule() {
     setRules((prev) => [...prev, createEmptyRule()]);
-    markRulesEdited("Nouvelle règle ajoutée. Complétez-la avant la validation.");
+    markRulesEdited({ type: "newRule" });
   }
 
   function removeRule(id: string) {
     setRules((prev) => prev.filter((rule) => rule.id !== id));
-    markRulesEdited("Règles mises à jour.");
+    markRulesEdited({ type: "rulesUpdated" });
   }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -259,7 +324,7 @@ export default function HomePage() {
     setRules([]);
     setRulesEdited(false);
     setFile(selected);
-    setStatus(`Analyse de ${selected.name}…`);
+    setStatus({ type: "analyzing", filename: selected.name });
 
     try {
       const data = await selected.arrayBuffer();
@@ -279,7 +344,7 @@ export default function HomePage() {
       if (mappedRules.length > 0) {
         setRules(mappedRules);
         setRulesEdited(false);
-        setStatus("Fichier analysé. Modifiez les règles si nécessaire avant validation.");
+        setStatus({ type: "analyzed" });
         return;
       }
 
@@ -288,27 +353,23 @@ export default function HomePage() {
         const generatedRules = templateFields.map((field) => createRuleFromField(field));
         setRules(generatedRules);
         setRulesEdited(true);
-        setStatus(
-          'Aucune règle trouvée. Les colonnes de la feuille "Template" ont été importées comme base par défaut.',
-        );
+        setStatus({ type: "importedTemplate" });
         return;
       }
 
       setRules([]);
       setRulesEdited(false);
-      setStatus(
-        'Aucune règle trouvée et aucun en-tête détecté dans la feuille "Template". Ajoutez vos règles manuellement.',
-      );
+      setStatus({ type: "importedNoHeaders" });
     } catch (error) {
       console.error(error);
-      setStatus("Erreur lors de la lecture du fichier. Vérifiez le format Excel.");
+      setStatus({ type: "readError" });
     }
   }
 
   async function launchValidation() {
     if (!file) return;
     setIsSubmitting(true);
-    setStatus("Validation en cours…");
+    setStatus({ type: "validating" });
     setReportUrl(null);
 
     try {
@@ -327,7 +388,7 @@ export default function HomePage() {
 
       if (!response.ok) {
         const message = await response.text();
-        setStatus(`Erreur validation: ${message}`);
+        setStatus({ type: "validationError", message });
         return;
       }
 
@@ -338,17 +399,25 @@ export default function HomePage() {
       } = await response.json();
 
       if (!payload.success) {
-        setStatus(payload.message ?? "La validation a échoué.");
+        setStatus(
+          payload.message
+            ? { type: "custom", message: payload.message }
+            : { type: "validationFailed" },
+        );
         return;
       }
 
-      setStatus(payload.message ?? "Validation terminée.");
+      setStatus(
+        payload.message
+          ? { type: "custom", message: payload.message }
+          : { type: "validationSuccess" },
+      );
       if (payload.downloadUrl) {
         setReportUrl(payload.downloadUrl);
       }
     } catch (error) {
       console.error(error);
-      setStatus("Erreur réseau: impossible de contacter le service de validation.");
+      setStatus({ type: "networkError" });
     } finally {
       setIsSubmitting(false);
     }
@@ -358,14 +427,11 @@ export default function HomePage() {
     <main className="min-h-screen bg-slate-50 p-6 transition-colors duration-300 dark:bg-slate-950 md:p-10">
       <section className="mx-auto flex max-w-5xl flex-col gap-8">
         <header className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Validation DMF</h1>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            Déposez votre template Excel pour visualiser les règles, personnalisez-les dans l'application puis lancez la
-            validation Python.
-          </p>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{hero.title}</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{hero.description}</p>
           <label className="mt-6 flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-6 text-center transition hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900/40">
-            <span className="text-base font-medium text-slate-700 dark:text-slate-200">Déposer un fichier Excel</span>
-            <span className="text-sm text-slate-500 dark:text-slate-400">Feuilles attendues: Template &amp; ValidationRules</span>
+            <span className="text-base font-medium text-slate-700 dark:text-slate-200">{hero.uploadLabel}</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">{hero.uploadHint}</span>
             <input type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleFileChange} ref={fileInputRef} />
           </label>
         </header>
@@ -373,46 +439,41 @@ export default function HomePage() {
         <article className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
           <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Règles détectées</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Interprétation lisible de la feuille ValidationRules et édition directement dans l'interface.
-              </p>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{rulesText.heading}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{rulesText.description}</p>
             </div>
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                {rules.length} règle{rules.length > 1 ? "s" : ""}
+                {rulesText.countLabel(rules.length)}
               </span>
               <button
                 type="button"
                 onClick={addRule}
                 className="inline-flex items-center rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
               >
-                Ajouter une règle
+                {rulesText.addButton}
               </button>
             </div>
           </header>
 
           <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
-            <p className="font-medium">Astuce d'utilisation</p>
+            <p className="font-medium">{rulesText.tipTitle}</p>
             <ul className="mt-2 list-disc space-y-1 pl-4">
-              <li>Activez ou désactivez les contrôles comme dans la feuille Excel.</li>
-              <li>Basculer sur « Instruction » permet de référencer une feuille annexe avec SHEET=NomFeuille.</li>
-              <li>Ajoutez autant de valeurs autorisées que nécessaire en saisissant une valeur par ligne.</li>
+              {rulesText.tips.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
             </ul>
           </div>
 
           {rules.length === 0 ? (
             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-              <p>
-                Aucune règle à afficher pour l'instant. Importez un fichier ou créez votre première règle pour démarrer la
-                configuration.
-              </p>
+              <p>{rulesText.emptyState.description}</p>
               <button
                 type="button"
                 onClick={addRule}
                 className="mt-4 inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
               >
-                Créer une première règle
+                {rulesText.emptyState.action}
               </button>
             </div>
           ) : (
@@ -422,17 +483,17 @@ export default function HomePage() {
                 return (
                   <div key={rule.id} className="rounded-xl border border-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                     <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950 md:flex-row md:items-end">
-                      <div className="flex-1">
-                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Champ</label>
+                    <div className="flex-1">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.field.label}</label>
                         <input
                           type="text"
                           value={rule.field}
                           onChange={(event) => updateRule(rule.id, { field: event.target.value })}
                           className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${fieldIsEmpty ? "border-rose-400 dark:border-rose-400" : "border-slate-200 dark:border-slate-700"}`}
-                          placeholder="Nom du champ dans la feuille Template"
+                          placeholder={rulesText.field.placeholder}
                         />
                         {fieldIsEmpty && (
-                          <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">Le nom du champ est requis pour lancer la validation.</p>
+                          <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{rulesText.field.error}</p>
                         )}
                       </div>
                       <button
@@ -440,7 +501,7 @@ export default function HomePage() {
                         onClick={() => removeRule(rule.id)}
                         className="inline-flex items-center justify-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 dark:border-rose-400/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
                       >
-                        Supprimer
+                        {rulesText.removeButton}
                       </button>
                     </div>
 
@@ -454,7 +515,7 @@ export default function HomePage() {
                               onChange={(event) => updateRule(rule.id, { checked: event.target.checked })}
                               className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-indigo-400 dark:focus:ring-indigo-400"
                             />
-                            Checker activé
+                            {rulesText.toggles.checked}
                           </label>
                           <label className="flex items-center gap-2">
                             <input
@@ -463,52 +524,52 @@ export default function HomePage() {
                               onChange={(event) => updateRule(rule.id, { required: event.target.checked })}
                               className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-indigo-400 dark:focus:ring-indigo-400"
                             />
-                            Champ obligatoire
+                            {rulesText.toggles.required}
                           </label>
                         </fieldset>
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Taille min</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.length.minLabel}</label>
                             <input
                               type="number"
                               value={rule.minLength ?? ""}
                               onChange={(event) => updateRule(rule.id, { minLength: parseNumberInput(event.target.value) })}
                               className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder="Optionnel"
+                              placeholder={rulesText.length.placeholder}
                             />
                           </div>
                           <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Taille max</label>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.length.maxLabel}</label>
                             <input
                               type="number"
                               value={rule.maxLength ?? ""}
                               onChange={(event) => updateRule(rule.id, { maxLength: parseNumberInput(event.target.value) })}
                               className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder="Optionnel"
+                              placeholder={rulesText.length.placeholder}
                             />
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Pattern (RegExp)</label>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.pattern.label}</label>
                           <input
                             type="text"
                             value={rule.pattern ?? ""}
                             onChange={(event) => updateRule(rule.id, { pattern: event.target.value || undefined })}
                             className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                            placeholder="Ex: ^[0-9]{5}$"
+                            placeholder={rulesText.pattern.placeholder}
                           />
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Règle personnalisée</label>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.customRule.label}</label>
                           <input
                             type="text"
                             value={rule.customRule ?? ""}
                             onChange={(event) => updateRule(rule.id, { customRule: event.target.value || undefined })}
                             className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                            placeholder="Nom de la fonction Python personnalisée"
+                            placeholder={rulesText.customRule.placeholder}
                           />
                         </div>
                       </div>
@@ -516,22 +577,22 @@ export default function HomePage() {
                       <div className="space-y-5">
                         <div>
                           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            Source des valeurs autorisées
+                            {rulesText.allowed.label}
                           </label>
                           <select
                             value={rule.allowedType}
                             onChange={(event) => updateRule(rule.id, { allowedType: event.target.value as AllowedType })}
                             className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                           >
-                            <option value="list">Liste de valeurs</option>
-                            <option value="instruction">Instruction (VALUE=, SHEET=, etc.)</option>
+                            <option value="list">{rulesText.allowed.options.list}</option>
+                            <option value="instruction">{rulesText.allowed.options.instruction}</option>
                           </select>
                         </div>
 
                         {rule.allowedType === "list" ? (
                           <div>
                             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Valeurs autorisées
+                              {rulesText.allowed.valuesLabel}
                             </label>
                             <textarea
                               value={rule.allowedValues.join("\n")}
@@ -544,11 +605,9 @@ export default function HomePage() {
                                 })
                               }
                               className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder="Saisissez une valeur par ligne"
+                              placeholder={rulesText.allowed.valuesPlaceholder}
                             />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              Ces valeurs seront converties en instruction VALUE= lors de la validation.
-                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.valuesHint}</p>
                             {rule.allowedValues.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-2">
                                 {rule.allowedValues.map((value) => (
@@ -565,17 +624,15 @@ export default function HomePage() {
                         ) : (
                           <div>
                             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              Instruction AllowedValues
+                              {rulesText.allowed.instructionLabel}
                             </label>
                             <textarea
                               value={rule.allowedInstruction}
                               onChange={(event) => updateRule(rule.id, { allowedInstruction: event.target.value })}
                               className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder="Ex: SHEET=AnnuaireCodes ou VALUE=A;B;C"
+                              placeholder={rulesText.allowed.instructionPlaceholder}
                             />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              Utilisez SHEET=NomFeuille pour charger une feuille annexe ou toute instruction personnalisée.
-                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.instructionHint}</p>
                           </div>
                         )}
                       </div>
@@ -588,7 +645,7 @@ export default function HomePage() {
         </article>
 
         <footer className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-slate-600 dark:text-slate-300">{status}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300">{statusMessage}</p>
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
@@ -596,7 +653,7 @@ export default function HomePage() {
               disabled={!file || isSubmitting}
               className="rounded-lg border border-rose-500 px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-400 dark:text-rose-300"
             >
-              Supprimer le fichier
+              {footer.removeFile}
             </button>
             <button
               type="button"
@@ -604,14 +661,14 @@ export default function HomePage() {
               onClick={launchValidation}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow transition disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
             >
-              {isSubmitting ? "Validation…" : "Lancer la validation Python"}
+              {isSubmitting ? footer.validating : footer.startValidation}
             </button>
             {reportUrl && (
               <a
                 href={reportUrl}
                 className="rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
               >
-                Télécharger le rapport
+                {footer.downloadReport}
               </a>
             )}
           </div>

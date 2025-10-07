@@ -2,7 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { ThemeToggle } from "../components/theme-toggle";
+import { LanguageProvider } from "../components/language-provider";
+import { TopControls } from "../components/top-controls";
 
 export const metadata: Metadata = {
   title: "Validation DMF",
@@ -17,8 +18,10 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
-        <ThemeToggle />
-        {children}
+        <LanguageProvider>
+          <TopControls />
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );
