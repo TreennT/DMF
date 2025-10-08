@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping, Sequence
 
 import pandas as pd
 
@@ -38,12 +38,28 @@ def _parse_concat_expression(
     return result
 
 
-def _build_result_dataframe(xls: dict[str, pd.DataFrame]) -> pd.DataFrame:
+def _build_result_dataframe(
+    xls: dict[str, pd.DataFrame],
+    rules_override: Sequence[Mapping[str, str]] | None = None,
+) -> pd.DataFrame:
     try:
         template = xls["Template"]
-        parameters = xls["Parameters"]
     except KeyError as exc:  # pragma: no cover - defensive programming
-        raise MappingError("Missing required sheets 'Template' and 'Parameters'.") from exc
+        raise MappingError("Missing required sheet 'Template'.") from exc
+
+    if rules_override is not None:
+        if rules_override:
+            parameters = pd.DataFrame(
+                [(entry["target"], entry.get("rule", "")) for entry in rules_override],
+                columns=["Target", "Rule"],
+            )
+        else:
+            parameters = pd.DataFrame(columns=["Target", "Rule"])
+    else:
+        try:
+            parameters = xls["Parameters"]
+        except KeyError as exc:  # pragma: no cover - defensive programming
+            raise MappingError("Missing required sheet 'Parameters'.") from exc
 
     result_df = pd.DataFrame()
 
@@ -147,7 +163,11 @@ def _build_result_dataframe(xls: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 
 def generate_mapped_workbook(
-    input_excel: str | Path, output_dir: str | Path, output_name: str | None = None
+    input_excel: str | Path,
+    output_dir: str | Path,
+    output_name: str | None = None,
+    *,
+    rules_override: Sequence[Mapping[str, str]] | None = None,
 ) -> Path:
     input_path = Path(input_excel).resolve()
     output_path = Path(output_dir).resolve()
@@ -164,7 +184,7 @@ def generate_mapped_workbook(
         raise MappingError(f"Cannot read '{input_path.name}': {exc}") from exc
 
     try:
-        result_df = _build_result_dataframe(xls)
+        result_df = _build_result_dataframe(xls, rules_override)
     except MappingError:
         raise
     except Exception as exc:  # noqa: BLE001

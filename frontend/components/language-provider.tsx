@@ -81,6 +81,29 @@ const translations = {
         genericError: "Le service de mapping a renvoyé une erreur.",
         networkError: "Erreur réseau : impossible de contacter le service de mapping.",
       },
+      rules: {
+        summary: (count: number) =>
+          count > 0
+            ? `${count} règle${count > 1 ? "s" : ""} Parameters`
+            : "Afficher les règles Parameters",
+        editedBadge: "Modifié",
+        description: "Prévisualisez et ajustez les instructions de la feuille Parameters.",
+        helper: "Les changements seront envoyés au script Python sous forme de JSON.",
+        emptyState: {
+          description:
+            "Aucune règle détectée. Créez des instructions manuellement pour les colonnes à générer.",
+        },
+        addButton: "Ajouter une règle",
+        removeButton: "Supprimer",
+        ruleLabel: (index: number) => `Règle ${index}`,
+        targetLabel: "Colonne cible",
+        targetPlaceholder: "Nom de la colonne générée",
+        targetError: "La colonne cible est obligatoire.",
+        instructionLabel: "Instruction / Règle",
+        instructionPlaceholder: "Ex : COLUMN=…, MAPPING=…, INVARIABLE=…",
+        instructionHint: "Reprenez les syntaxes Parameters habituelles (COLUMN=, MAPPING=, NS=, etc.).",
+        launchWarning: "Complétez toutes les colonnes cibles avant de lancer le mapping.",
+      },
       tips: {
         title: "Conseils d'utilisation",
         items: [
@@ -237,23 +260,43 @@ const translations = {
         selectFile: "Select a file",
         changeFile: "Change file",
         removeFile: "Remove file",
-        start: "Run mapping",
-        processing: "Mapping…",
+        start: "Start mapping",
+        processing: "Mapping in progress…",
         download: "Download result",
       },
       status: {
-        idle: "Import an Excel file to start the mapping process.",
+        idle: "Upload an Excel file to start the mapping run.",
         ready: (filename: string) => `File ready: ${filename}.`,
-        processing: (filename: string) => `Mapping in progress for ${filename}…`,
+        processing: (filename: string) => `Mapping ${filename}…`,
         success: (originalName: string) => `Mapping completed. Download ${originalName}.`,
-        error: (message: string) => `Mapping error: ${message}`,
+        error: (message: string) => `Mapping failed: ${message}`,
         genericError: "The mapping service returned an error.",
         networkError: "Network error: unable to reach the mapping service.",
       },
+      rules: {
+        summary: (count: number) =>
+          count > 0 ? `${count} Parameters rule${count > 1 ? "s" : ""}` : "Show Parameters rules",
+        editedBadge: "Edited",
+        description: "Review and tweak the instructions coming from the Parameters sheet.",
+        helper: "Changes are sent to the Python script as JSON overrides.",
+        emptyState: {
+          description: "No rule detected. Create instructions manually for the generated columns.",
+        },
+        addButton: "Add a rule",
+        removeButton: "Delete",
+        ruleLabel: (index: number) => `Rule ${index}`,
+        targetLabel: "Target column",
+        targetPlaceholder: "Name of the generated column",
+        targetError: "Target column is required.",
+        instructionLabel: "Instruction / Rule",
+        instructionPlaceholder: "Eg: COLUMN=…, MAPPING=…, INVARIABLE=…",
+        instructionHint: "Use the usual Parameters syntax (COLUMN=, MAPPING=, NS=, etc.).",
+        launchWarning: "Fill every target column before running the mapping.",
+      },
       tips: {
-        title: "Tips for best results",
+        title: "Usage tips",
         items: [
-          "Ensure the Template and Parameters sheets are present and filled in.",
+          "Make sure the Template and Parameters sheets are present and filled in.",
           "Sheets referenced in MAPPING= rules must exist in your workbook.",
           "The generated file automatically receives the _mapping suffix for easier identification.",
         ],
