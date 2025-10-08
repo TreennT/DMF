@@ -29,6 +29,7 @@ def _sanitize_rules(payload: Any) -> list[dict[str, str]]:
             continue
 
         rule = "" if rule_raw is None else str(rule_raw).strip()
+
         sanitized.append({"target": target, "rule": rule})
 
     return sanitized

@@ -75,6 +75,13 @@ function parseParametersSheet(sheet: XLSX.WorkSheet): MappingRuleRow[] {
       return acc;
     }
 
+    // Ignore any rule that targets or references the special Template column "CIBLECOLUMN"
+    const targetLower = target.toLowerCase();
+    const instructionLower = instruction.toLowerCase();
+    if (targetLower === "ciblecolumn" || instructionLower.includes("ciblecolumn")) {
+      return acc;
+    }
+
     acc.push({
       id: createId(),
       target,
