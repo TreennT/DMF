@@ -196,18 +196,33 @@ const translations = {
       },
     },
     hero: {
+      badge: "Revue Excel",
       title: "Validation DMF",
       description:
         "Déposez votre template Excel pour visualiser les règles, personnalisez-les dans l'application puis lancez la validation Python.",
       uploadLabel: "Déposer un fichier Excel",
       uploadHint: "Feuilles attendues: Template & ValidationRules",
+      unknownType: "Type inconnu",
+    },
+    actions: {
+      selectFile: "Sélectionner un fichier",
+      changeFile: "Changer de fichier",
+      removeFile: "Supprimer le fichier",
+      start: "Lancer la validation",
+      processing: "Validation en cours…",
+      download: "Télécharger le rapport",
     },
     rules: {
       heading: "Règles détectées",
       description:
         "Interprétation lisible de la feuille ValidationRules et édition directement dans l'interface.",
       countLabel: (count: number) => `${count} règle${count > 1 ? "s" : ""}`,
+      summary: (count: number) =>
+        count > 0 ? `${count} règle${count > 1 ? "s" : ""}` : "Afficher les règles",
       addButton: "Ajouter une règle",
+      helper:
+        "Chaque règle correspond à une ligne de la feuille ValidationRules et peut être ajustée ici avant la validation.",
+      editedBadge: "Modifié",
       tipTitle: "Astuce d'utilisation",
       tips: [
         "Activez ou désactivez les contrôles comme dans la feuille Excel.",
@@ -219,10 +234,13 @@ const translations = {
           "Aucune règle à afficher pour l'instant. Importez un fichier ou créez votre première règle pour démarrer la configuration.",
         action: "Créer une première règle",
       },
+      ruleLabel: (index: number) => `Règle ${index}`,
       field: {
         label: "Champ",
         placeholder: "Nom du champ dans la feuille Template",
         error: "Le nom du champ est requis pour lancer la validation.",
+        helper:
+          "Sélectionnez une colonne du Template ou saisissez un nom personnalisé si nécessaire.",
       },
       removeButton: "Supprimer",
       toggles: {
@@ -255,6 +273,9 @@ const translations = {
         instructionPlaceholder: "Ex: SHEET=AnnuaireCodes ou VALUE=A;B;C",
         instructionHint:
           "Utilisez SHEET=NomFeuille pour charger une feuille annexe ou toute instruction personnalisée.",
+        sheetLabel: "Feuille associée",
+        sheetPlaceholder: "Sélectionnez une feuille",
+        sheetHint: "Choisissez une feuille pour remplir automatiquement l'instruction SHEET=NomFeuille.",
       },
     },
     footer: {
@@ -283,6 +304,17 @@ const translations = {
       validationSuccess: "Validation terminée.",
       networkError:
         "Erreur réseau: impossible de contacter le service de validation.",
+    },
+    structure: {
+      summary: (count: number) =>
+        count > 0 ? `${count} feuille${count > 1 ? "s" : ""} détectée${count > 1 ? "s" : ""}` : "Structure du fichier",
+      description:
+        "Visualisez l'arborescence du classeur importé : chaque feuille et les colonnes détectées en première ligne.",
+      empty: "Aucune feuille n'a pu être lue dans le fichier fourni.",
+      sheet: {
+        columns: (count: number) =>
+          count > 0 ? `${count} colonne${count > 1 ? "s" : ""}` : "Aucun en-tête détecté",
+      },
     },
   },
   en: {
@@ -467,18 +499,32 @@ const translations = {
       },
     },
     hero: {
+      badge: "Excel review",
       title: "DMF validation",
       description:
         "Drop your Excel template to visualize the rules, customize them in the app, then launch the Python validation.",
       uploadLabel: "Upload an Excel file",
       uploadHint: "Expected sheets: Template & ValidationRules",
+      unknownType: "Unknown type",
+    },
+    actions: {
+      selectFile: "Select a file",
+      changeFile: "Change file",
+      removeFile: "Remove file",
+      start: "Start validation",
+      processing: "Validating…",
+      download: "Download report",
     },
     rules: {
       heading: "Detected rules",
       description:
         "Readable interpretation of the ValidationRules sheet with direct editing in the interface.",
       countLabel: (count: number) => `${count} rule${count === 1 ? "" : "s"}`,
+      summary: (count: number) => (count > 0 ? `${count} rule${count === 1 ? "" : "s"}` : "Show rules"),
       addButton: "Add a rule",
+      helper:
+        "Each rule mirrors a row from the ValidationRules sheet and can be adjusted here before running the validation.",
+      editedBadge: "Edited",
       tipTitle: "Usage tips",
       tips: [
         "Enable or disable controls just like in the Excel sheet.",
@@ -490,10 +536,13 @@ const translations = {
           "No rules to display yet. Import a file or create your first rule to start configuring.",
         action: "Create a first rule",
       },
+      ruleLabel: (index: number) => `Rule ${index}`,
       field: {
         label: "Field",
         placeholder: "Field name from the Template sheet",
         error: "Field name is required before launching validation.",
+        helper:
+          "Select a column from the Template sheet or type a custom name if needed.",
       },
       removeButton: "Delete",
       toggles: {
@@ -528,6 +577,9 @@ const translations = {
           "e.g. SHEET=CodeDirectory or VALUE=A;B;C",
         instructionHint:
           "Use SHEET=SheetName to load an auxiliary sheet or any custom instruction.",
+        sheetLabel: "Linked sheet",
+        sheetPlaceholder: "Select a sheet",
+        sheetHint: "Pick a sheet to automatically fill the SHEET=SheetName instruction.",
       },
     },
     footer: {
@@ -555,6 +607,17 @@ const translations = {
       validationFailed: "Validation failed.",
       validationSuccess: "Validation completed.",
       networkError: "Network error: unable to reach the validation service.",
+    },
+    structure: {
+      summary: (count: number) =>
+        count > 0 ? `${count} sheet${count > 1 ? "s" : ""} detected` : "Workbook structure",
+      description:
+        "Browse the imported workbook tree: each sheet and the headers detected on the first row.",
+      empty: "No sheet could be read from the provided file.",
+      sheet: {
+        columns: (count: number) =>
+          count > 0 ? `${count} column${count > 1 ? "s" : ""}` : "No header detected",
+      },
     },
   },
 } as const;
