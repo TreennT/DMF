@@ -68,6 +68,22 @@ function normalizeCell(value: unknown): string {
   return String(value).trim();
 }
 
+function extractTemplateFields(sheet?: XLSX.WorkSheet): string[] {
+  if (!sheet) return [];
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false });
+  if (rows.length === 0) return [];
+  const headerRow =
+    rows.find((row) =>
+      row.some((cell) => {
+        if (cell === undefined || cell === null) return false;
+        return String(cell).trim().length > 0;
+      }),
+    ) ?? [];
+  return headerRow
+    .map((cell) => (cell === undefined || cell === null ? "" : String(cell).trim()))
+    .filter((value) => value.length > 0);
+}
+
 function createRuleConfig(type: MappingRuleType): ParsedInstruction {
   const base: ParsedInstruction = {
     type,
@@ -304,6 +320,7 @@ export default function MappingPage() {
   const [rulesEdited, setRulesEdited] = useState<boolean>(false);
   const [rulesOpen, setRulesOpen] = useState<boolean>(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [templateColumns, setTemplateColumns] = useState<string[]>([]);
 
   const { content } = useLanguage();
   const { mapping, common } = content;
@@ -353,6 +370,7 @@ export default function MappingPage() {
     setRulesOpen(false);
     setDownloadUrl(null);
     setStatus({ type: "idle" });
+    setTemplateColumns([]);
   }
 
   function updateRule(id: string, updates: Partial<MappingRuleRow>) {
@@ -377,12 +395,27 @@ export default function MappingPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               {mapping.rules.fields.column.sourceLabel}
             </label>
-            <input
-              value={rule.sourceColumn ?? ""}
-              onChange={(event) => updateRule(rule.id, { sourceColumn: event.target.value })}
-              placeholder={mapping.rules.fields.column.sourcePlaceholder}
-              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-            />
+            {templateColumns.length > 0 ? (
+              <select
+                value={rule.sourceColumn ?? ""}
+                onChange={(event) => updateRule(rule.id, { sourceColumn: event.target.value })}
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value="">{mapping.rules.fields.column.sourcePlaceholder}</option>
+                {templateColumns.map((col) => (
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={rule.sourceColumn ?? ""}
+                onChange={(event) => updateRule(rule.id, { sourceColumn: event.target.value })}
+                placeholder={mapping.rules.fields.column.sourcePlaceholder}
+                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              />
+            )}
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {mapping.rules.fields.column.helper}
             </p>
@@ -527,6 +560,9 @@ export default function MappingPage() {
       const data = await selected.arrayBuffer();
       const workbook = XLSX.read(data);
       const parametersSheet = workbook.Sheets["Parameters"];
+      const templateSheet = workbook.Sheets["Template"];
+      const cols = extractTemplateFields(templateSheet);
+      setTemplateColumns(cols);
 
       if (parametersSheet) {
         const parsedRules = parseParametersSheet(parametersSheet);
