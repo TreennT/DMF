@@ -11,6 +11,16 @@ const truthyValues = new Set(["true", "1", "yes", "oui", "y", "x"]);
 
 type AllowedType = "list" | "instruction";
 
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "0 B";
+  }
+  const units = ["B", "KB", "MB", "GB"] as const;
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** index;
+  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
 type RuleRow = {
   id: string;
   field: string;
@@ -278,14 +288,24 @@ export default function HomePage() {
   const [reportUrl, setReportUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [rulesEdited, setRulesEdited] = useState<boolean>(false);
+  const [rulesOpen, setRulesOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const statusMessage = resolveStatusMessage(status, statuses);
 
   const hasMissingField = useMemo(() => rules.some((rule) => !rule.field.trim()), [rules]);
+  const hasDetailIssue = useMemo(
+    () => rules.some((rule) => rule.allowedType === "instruction" && !rule.allowedInstruction.trim()),
+    [rules],
+  );
+
+  function openFileDialog() {
+    fileInputRef.current?.click();
+  }
 
   function markRulesEdited(nextStatus: StatusState = { type: "awaiting" }) {
     setRulesEdited(true);
+    setRulesOpen(true);
     if (!isSubmitting) {
       setStatus(nextStatus);
     }
@@ -298,6 +318,7 @@ export default function HomePage() {
     setFile(null);
     setRules([]);
     setRulesEdited(false);
+    setRulesOpen(false);
     setReportUrl(null);
     setStatus(nextStatus);
   }
@@ -451,266 +472,387 @@ export default function HomePage() {
     }
   }
 
+  const isErrorStatus =
+    status.type === "validationError" ||
+    status.type === "validationFailed" ||
+    status.type === "networkError" ||
+    status.type === "readError";
+
   return (
     <main className="min-h-screen bg-slate-50 p-6 transition-colors duration-300 dark:bg-slate-950 md:p-10">
-      <div className="mb-8">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-        >
-          <span aria-hidden>←</span>
-          {common.backToHome}
-        </Link>
-      </div>
-      <section className="mx-auto flex max-w-5xl flex-col gap-8">
-        <header className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{hero.title}</h1>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{hero.description}</p>
-          <label className="mt-6 flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 p-6 text-center transition hover:border-indigo-400 dark:border-slate-600 dark:bg-slate-900/40">
-            <span className="text-base font-medium text-slate-700 dark:text-slate-200">{hero.uploadLabel}</span>
-            <span className="text-sm text-slate-500 dark:text-slate-400">{hero.uploadHint}</span>
-            <input type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleFileChange} ref={fileInputRef} />
-          </label>
-        </header>
+      <div className="mx-auto flex max-w-4xl flex-col gap-10">
+        <div>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <span aria-hidden>←</span>
+            {common.backToHome}
+          </Link>
+        </div>
 
-        <article className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
-          <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{rulesText.heading}</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{rulesText.description}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                {rulesText.countLabel(rules.length)}
-              </span>
-              <button
-                type="button"
-                onClick={addRule}
-                className="inline-flex items-center rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
-              >
-                {rulesText.addButton}
-              </button>
-            </div>
-          </header>
+        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+          <div className="space-y-6">
+            <header className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-500">
+                {hero.badge}
+              </p>
+              <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">{hero.title}</h1>
+              <p className="text-base leading-relaxed text-slate-600 dark:text-slate-300">{hero.description}</p>
+            </header>
 
-          <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
-            <p className="font-medium">{rulesText.tipTitle}</p>
-            <ul className="mt-2 list-disc space-y-1 pl-4">
-              {rulesText.tips.map((tip) => (
-                <li key={tip}>{tip}</li>
-              ))}
-            </ul>
-          </div>
+            <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-6 text-center dark:border-slate-700 dark:bg-slate-950/40">
+              {file ? (
+                <div className="space-y-2">
+                  <p className="text-base font-medium text-slate-800 dark:text-slate-100">{file.name}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {formatFileSize(file.size)} · {file.type || hero.unknownType}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-base font-medium text-slate-800 dark:text-slate-100">{hero.uploadLabel}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{hero.uploadHint}</p>
+                </div>
+              )}
 
-          {rules.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-              <p>{rulesText.emptyState.description}</p>
-              <button
-                type="button"
-                onClick={addRule}
-                className="mt-4 inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-              >
-                {rulesText.emptyState.action}
-              </button>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={openFileDialog}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 dark:ring-offset-slate-900"
+                >
+                  {file ? hero.changeButton : hero.selectButton}
+                </button>
+                {file ? (
+                  <button
+                    type="button"
+                    onClick={() => resetSelection()}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    {footer.removeFile}
+                  </button>
+                ) : null}
+              </div>
             </div>
-          ) : (
-            <div className="mt-6 space-y-6">
-              {rules.map((rule) => {
-                const fieldIsEmpty = rule.field.trim().length === 0;
-                return (
-                  <div key={rule.id} className="rounded-xl border border-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                    <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950 md:flex-row md:items-end">
-                    <div className="flex-1">
-                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.field.label}</label>
-                        <input
-                          type="text"
-                          value={rule.field}
-                          onChange={(event) => updateRule(rule.id, { field: event.target.value })}
-                          className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${fieldIsEmpty ? "border-rose-400 dark:border-rose-400" : "border-slate-200 dark:border-slate-700"}`}
-                          placeholder={rulesText.field.placeholder}
-                        />
-                        {fieldIsEmpty && (
-                          <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{rulesText.field.error}</p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeRule(rule.id)}
-                        className="inline-flex items-center justify-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 dark:border-rose-400/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                      >
-                        {rulesText.removeButton}
-                      </button>
+
+            {file ? (
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <details
+                  className="group"
+                  open={rulesOpen}
+                  onToggle={(event) => setRulesOpen(event.currentTarget.open)}
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                    <span>{rulesText.summary(rules.length)}</span>
+                    <span className="flex items-center gap-2">
+                      {rulesEdited ? (
+                        <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-600 dark:bg-emerald-900/60 dark:text-emerald-200">
+                          {rulesText.editedBadge}
+                        </span>
+                      ) : null}
+                      <span aria-hidden className="text-base transition-transform duration-200 group-open:rotate-180">
+                        ▾
+                      </span>
+                    </span>
+                  </summary>
+
+                  <div className="mt-6 space-y-6">
+                    <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-950/40 dark:text-slate-300">
+                      <p className="font-medium">{rulesText.description}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.helper}</p>
                     </div>
 
-                    <div className="grid gap-6 p-5 md:grid-cols-2">
-                      <div className="space-y-5">
-                        <fieldset className="grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={rule.checked}
-                              onChange={(event) => updateRule(rule.id, { checked: event.target.checked })}
-                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-indigo-400 dark:focus:ring-indigo-400"
-                            />
-                            {rulesText.toggles.checked}
-                          </label>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={rule.required}
-                              onChange={(event) => updateRule(rule.id, { required: event.target.checked })}
-                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-indigo-400 dark:focus:ring-indigo-400"
-                            />
-                            {rulesText.toggles.required}
-                          </label>
-                        </fieldset>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.length.minLabel}</label>
-                            <input
-                              type="number"
-                              value={rule.minLength ?? ""}
-                              onChange={(event) => updateRule(rule.id, { minLength: parseNumberInput(event.target.value) })}
-                              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder={rulesText.length.placeholder}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.length.maxLabel}</label>
-                            <input
-                              type="number"
-                              value={rule.maxLength ?? ""}
-                              onChange={(event) => updateRule(rule.id, { maxLength: parseNumberInput(event.target.value) })}
-                              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder={rulesText.length.placeholder}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.pattern.label}</label>
-                          <input
-                            type="text"
-                            value={rule.pattern ?? ""}
-                            onChange={(event) => updateRule(rule.id, { pattern: event.target.value || undefined })}
-                            className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                            placeholder={rulesText.pattern.placeholder}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{rulesText.customRule.label}</label>
-                          <input
-                            type="text"
-                            value={rule.customRule ?? ""}
-                            onChange={(event) => updateRule(rule.id, { customRule: event.target.value || undefined })}
-                            className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                            placeholder={rulesText.customRule.placeholder}
-                          />
-                        </div>
+                    {rules.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                        <p>{rulesText.emptyState.description}</p>
+                        <button
+                          type="button"
+                          onClick={addRule}
+                          className="mt-4 inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+                        >
+                          {rulesText.emptyState.action}
+                        </button>
                       </div>
-
+                    ) : (
                       <div className="space-y-5">
-                        <div>
-                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            {rulesText.allowed.label}
-                          </label>
-                          <select
-                            value={rule.allowedType}
-                            onChange={(event) => updateRule(rule.id, { allowedType: event.target.value as AllowedType })}
-                            className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                          >
-                            <option value="list">{rulesText.allowed.options.list}</option>
-                            <option value="instruction">{rulesText.allowed.options.instruction}</option>
-                          </select>
-                        </div>
+                        {rules.map((rule, index) => {
+                          const fieldIsEmpty = rule.field.trim().length === 0;
+                          const instructionEmpty =
+                            rule.allowedType === "instruction" && rule.allowedInstruction.trim().length === 0;
 
-                        {rule.allowedType === "list" ? (
-                          <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              {rulesText.allowed.valuesLabel}
-                            </label>
-                            <textarea
-                              value={rule.allowedValues.join("\n")}
-                              onChange={(event) =>
-                                updateRule(rule.id, {
-                                  allowedValues: event.target.value
-                                    .split(/\r?\n/)
-                                    .map((value) => value.trim())
-                                    .filter((value) => value.length > 0),
-                                })
-                              }
-                              className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder={rulesText.allowed.valuesPlaceholder}
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.valuesHint}</p>
-                            {rule.allowedValues.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {rule.allowedValues.map((value) => (
-                                  <span
-                                    key={`${rule.id}-${value}`}
-                                    className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                                  >
-                                    {value}
-                                  </span>
-                                ))}
+                          return (
+                            <div
+                              key={rule.id}
+                              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
+                            >
+                              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                                <div className="flex-1 space-y-5">
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                      {rulesText.ruleLabel(index + 1)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                      {rulesText.field.label}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={rule.field}
+                                      onChange={(event) => updateRule(rule.id, { field: event.target.value })}
+                                      placeholder={rulesText.field.placeholder}
+                                      className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${
+                                        fieldIsEmpty
+                                          ? "border-red-300 focus:border-red-400 dark:border-red-700"
+                                          : "border-slate-200 focus:border-emerald-400"
+                                      }`}
+                                    />
+                                    {fieldIsEmpty ? (
+                                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">{rulesText.field.error}</p>
+                                    ) : null}
+                                  </div>
+
+                                  <div className="grid gap-3 sm:grid-cols-2">
+                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                      <input
+                                        type="checkbox"
+                                        checked={rule.checked}
+                                        onChange={(event) => updateRule(rule.id, { checked: event.target.checked })}
+                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900 dark:text-emerald-400 dark:focus:ring-emerald-400"
+                                      />
+                                      {rulesText.toggles.checked}
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                      <input
+                                        type="checkbox"
+                                        checked={rule.required}
+                                        onChange={(event) => updateRule(rule.id, { required: event.target.checked })}
+                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900 dark:text-emerald-400 dark:focus:ring-emerald-400"
+                                      />
+                                      {rulesText.toggles.required}
+                                    </label>
+                                  </div>
+
+                                  <div className="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        {rulesText.length.minLabel}
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={rule.minLength ?? ""}
+                                        onChange={(event) =>
+                                          updateRule(rule.id, { minLength: parseNumberInput(event.target.value) })
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                        placeholder={rulesText.length.placeholder}
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        {rulesText.length.maxLabel}
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={rule.maxLength ?? ""}
+                                        onChange={(event) =>
+                                          updateRule(rule.id, { maxLength: parseNumberInput(event.target.value) })
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                        placeholder={rulesText.length.placeholder}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                      {rulesText.pattern.label}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={rule.pattern ?? ""}
+                                      onChange={(event) => updateRule(rule.id, { pattern: event.target.value || undefined })}
+                                      className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                      placeholder={rulesText.pattern.placeholder}
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                      {rulesText.customRule.label}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={rule.customRule ?? ""}
+                                      onChange={(event) =>
+                                        updateRule(rule.id, { customRule: event.target.value || undefined })
+                                      }
+                                      className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                      placeholder={rulesText.customRule.placeholder}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <div>
+                                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        {rulesText.allowed.label}
+                                      </label>
+                                      <select
+                                        value={rule.allowedType}
+                                        onChange={(event) =>
+                                          updateRule(rule.id, { allowedType: event.target.value as AllowedType })
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                      >
+                                        <option value="list">{rulesText.allowed.options.list}</option>
+                                        <option value="instruction">{rulesText.allowed.options.instruction}</option>
+                                      </select>
+                                    </div>
+
+                                    {rule.allowedType === "list" ? (
+                                      <div>
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                          {rulesText.allowed.valuesLabel}
+                                        </label>
+                                        <textarea
+                                          value={rule.allowedValues.join("\n")}
+                                          onChange={(event) =>
+                                            updateRule(rule.id, {
+                                              allowedValues: event.target.value
+                                                .split(/\r?\n/)
+                                                .map((value) => value.trim())
+                                                .filter((value) => value.length > 0),
+                                            })
+                                          }
+                                          className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                          placeholder={rulesText.allowed.valuesPlaceholder}
+                                        />
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.valuesHint}</p>
+                                        {rule.allowedValues.length > 0 ? (
+                                          <div className="mt-3 flex flex-wrap gap-2">
+                                            {rule.allowedValues.map((value) => (
+                                              <span
+                                                key={`${rule.id}-${value}`}
+                                                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                              >
+                                                {value}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                          {rulesText.allowed.instructionLabel}
+                                        </label>
+                                        <textarea
+                                          value={rule.allowedInstruction}
+                                          onChange={(event) => updateRule(rule.id, { allowedInstruction: event.target.value })}
+                                          className={`mt-2 h-28 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${
+                                            instructionEmpty
+                                              ? "border-red-300 focus:border-red-400 dark:border-red-700"
+                                              : "border-slate-200 focus:border-emerald-400"
+                                          }`}
+                                          placeholder={rulesText.allowed.instructionPlaceholder}
+                                        />
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.instructionHint}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => removeRule(rule.id)}
+                                  className="inline-flex items-center justify-center rounded-full border border-rose-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-rose-600 shadow-sm transition hover:bg-rose-50 dark:border-rose-400 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                                >
+                                  {rulesText.removeButton}
+                                </button>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div>
-                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                              {rulesText.allowed.instructionLabel}
-                            </label>
-                            <textarea
-                              value={rule.allowedInstruction}
-                              onChange={(event) => updateRule(rule.id, { allowedInstruction: event.target.value })}
-                              className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                              placeholder={rulesText.allowed.instructionPlaceholder}
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.instructionHint}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </article>
+                            </div>
+                          );
+                        })}
 
-        <footer className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm text-slate-600 dark:text-slate-300">{statusMessage}</p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => resetSelection()}
-              disabled={!file || isSubmitting}
-              className="rounded-lg border border-rose-500 px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-400 dark:text-rose-300"
-            >
-              {footer.removeFile}
-            </button>
-            <button
-              type="button"
-              disabled={!file || isSubmitting || hasMissingField}
-              onClick={launchValidation}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow transition disabled:cursor-not-allowed disabled:bg-slate-300 dark:disabled:bg-slate-700"
-            >
-              {isSubmitting ? footer.validating : footer.startValidation}
-            </button>
-            {reportUrl && (
-              <a
-                href={reportUrl}
-                className="rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 dark:border-indigo-400 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
+                        <div className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={addRule}
+                            className="inline-flex items-center gap-2 rounded-full border border-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 dark:border-emerald-400 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+                          >
+                            {rulesText.addButton}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </section>
+            ) : null}
+
+            <div className="flex flex-col gap-2">
+              <p
+                className={`rounded-2xl border px-4 py-3 text-sm leading-relaxed ${
+                  isErrorStatus
+                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-900/40 dark:text-red-200"
+                    : "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                }`}
               >
-                {footer.downloadReport}
-              </a>
-            )}
+                {statusMessage}
+              </p>
+              {hasMissingField ? (
+                <p className="text-xs font-medium text-red-600 dark:text-red-400">{rulesText.launchWarning}</p>
+              ) : null}
+              {hasDetailIssue ? (
+                <p className="text-xs font-medium text-red-600 dark:text-red-400">{rulesText.detailWarning}</p>
+              ) : null}
+            </div>
           </div>
-        </footer>
-      </section>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{rulesText.tipTitle}</h2>
+          <ul className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            {rulesText.tips.map((tip) => (
+              <li key={tip} className="flex items-start gap-3">
+                <span className="mt-1 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
+                  ✓
+                </span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={launchValidation}
+            disabled={!file || isSubmitting || hasMissingField}
+            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white/90"
+          >
+            {isSubmitting ? footer.validating : footer.startValidation}
+          </button>
+
+          {reportUrl ? (
+            <a
+              href={reportUrl}
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-500 px-5 py-2 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-50 dark:border-emerald-400 dark:text-emerald-300 dark:hover:bg-emerald-400/10"
+            >
+              {footer.downloadReport}
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xlsm"
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </main>
   );
 }
