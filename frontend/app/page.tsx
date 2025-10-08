@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
@@ -37,24 +37,47 @@ type RulePayload = {
   customRule: string;
 };
 
-type StatusState =
-  | { type: "default" }
-  | { type: "awaiting" }
-  | { type: "newRule" }
-  | { type: "rulesUpdated" }
-  | { type: "analyzing"; filename: string }
-  | { type: "analyzed" }
-  | { type: "importedTemplate" }
-  | { type: "importedNoHeaders" }
-  | { type: "readError" }
-  | { type: "validating" }
-  | { type: "validationError"; message: string }
-  | { type: "validationFailed" }
-  | { type: "validationSuccess" }
-  | { type: "networkError" }
-  | { type: "custom"; message: string };
-
-function resolveStatusMessage(
+ type StatusState =
+   | { type: "default" }
+   | { type: "awaiting" }
+   | { type: "newRule" }
+   | { type: "rulesUpdated" }
+   | { type: "analyzing"; filename: string }
+   | { type: "analyzed" }
+   | { type: "importedTemplate" }
+   | { type: "importedNoHeaders" }
+   | { type: "readError" }
+   | { type: "validating" }
+   | { type: "validationError"; message: string }
+   | { type: "validationFailed" }
+   | { type: "validationSuccess" }
+   | { type: "networkError" }
+   | { type: "custom"; message: string };
+ 
+ async function readErrorMessage(response: Response): Promise<string | null> {
+   const contentType = response.headers.get("content-type") ?? "";
+   if (contentType.includes("application/json")) {
+     try {
+       const data = await response.clone().json();
+       const message = typeof data?.message === "string" ? data.message.trim() : "";
+       if (message.length > 0) {
+         return message;
+       }
+     } catch {
+       // ignore JSON parsing errors, we will fallback to text
+     }
+   }
+ 
+   try {
+     const text = await response.text();
+     const trimmed = text.trim();
+     return trimmed.length > 0 ? trimmed : null;
+   } catch {
+     return null;
+   }
+ }
+ 
+ function resolveStatusMessage(
   status: StatusState,
   statuses: Translation["statuses"],
 ): string {
@@ -387,8 +410,12 @@ export default function HomePage() {
       });
 
       if (!response.ok) {
-        const message = await response.text();
-        setStatus({ type: "validationError", message });
+        const message = await readErrorMessage(response);
+        setStatus(
+          message
+            ? { type: "validationError", message }
+            : { type: "validationFailed" },
+        );
         return;
       }
 
@@ -677,3 +704,4 @@ export default function HomePage() {
     </main>
   );
 }
+

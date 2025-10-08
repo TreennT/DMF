@@ -1,12 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 
 const PROJECT_ROOT = path.resolve(process.cwd(), "..");
 const BACKEND_ROOT = path.join(PROJECT_ROOT, "backend");
-const TMP_DIR = path.join(BACKEND_ROOT, "tmp");
+const TMP_DIR = path.join(
+  process.env.VALIDATION_TMP_DIR ?? tmpdir(),
+  "dmf-validator",
+);
 const PYTHON_RUNNER = path.join(BACKEND_ROOT, "python_runner.py");
 
 const PYTHON_CANDIDATES = [process.env.PYTHON_BIN, "python", "python3"].filter(
@@ -178,9 +182,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const { inputPath, baseName } = await saveUploadedFile(file);
+    const cleanupTargets = new Set<string>([inputPath]);
 
     const rawRules = formData.get("rules");
-    let rulesPath: string | null = null;
+    let runtimeRulesPath: string | undefined;
     try {
       if (typeof rawRules === "string") {
         const trimmedRules = rawRules.trim();
@@ -189,8 +194,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             const parsed = JSON.parse(trimmedRules);
             const sanitized = sanitizeRules(parsed);
             const rulesFile = `${randomUUID()}-rules.json`;
-            rulesPath = path.join(TMP_DIR, rulesFile);
+            const rulesPath = path.join(TMP_DIR, rulesFile);
             await writeFile(rulesPath, JSON.stringify(sanitized), "utf-8");
+            cleanupTargets.add(rulesPath);
+            runtimeRulesPath = rulesPath;
           } catch (error) {
             console.error("Invalid rules payload", error);
             return new NextResponse("Le format des regles est invalide", { status: 400 });
@@ -200,11 +207,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
       let result;
       try {
-        result = await runPythonValidation(inputPath, TMP_DIR, rulesPath ?? undefined);
+        result = await runPythonValidation(inputPath, TMP_DIR, runtimeRulesPath);
       } catch (error) {
         console.error("Failed to start Python validation", error);
-        const code = typeof error === "object" && error !== null && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
-        const message = code === "ENOENT" ? "Python n'est pas disponible sur le serveur de validation." : "Echec lors du lancement du moteur Python.";
+        const code =
+          typeof error === "object" && error !== null && "code" in error
+            ? (error as NodeJS.ErrnoException).code
+            : undefined;
+        const message =
+          code === "ENOENT"
+            ? "Python n'est pas disponible sur le serveur de validation."
+            : "Echec lors du lancement du moteur Python.";
         return NextResponse.json({ success: false, message }, { status: 500 });
       }
 
@@ -220,9 +233,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         downloadUrl: `/api/reports/${encodeURIComponent(reviewName)}`,
       });
     } finally {
-      if (rulesPath) {
-        await rm(rulesPath, { force: true }).catch(() => undefined);
-      }
+      await Promise.all(
+        Array.from(cleanupTargets, (target) =>
+          rm(target, { force: true }).catch(() => undefined),
+        ),
+      );
     }
   } catch (error) {
     console.error(error);
