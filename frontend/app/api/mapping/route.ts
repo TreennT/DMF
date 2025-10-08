@@ -14,6 +14,11 @@ const PYTHON_CANDIDATES = [process.env.PYTHON_BIN, "python", "python3"].filter(
   (candidate): candidate is string => Boolean(candidate && candidate.trim().length > 0),
 );
 
+type MappingRulePayload = {
+  target: string;
+  rule: string;
+};
+
 async function ensureTmpDir(): Promise<void> {
   await mkdir(TMP_DIR, { recursive: true });
 }
@@ -62,10 +67,19 @@ async function runPythonMapping(
   inputPath: string,
   outputDir: string,
   outputName?: string,
+  rulesPath?: string,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   const args = outputName
     ? [PYTHON_MAPPER, inputPath, outputDir, outputName]
     : [PYTHON_MAPPER, inputPath, outputDir];
+
+  if (rulesPath) {
+    if (outputName) {
+      args.push(rulesPath);
+    } else {
+      args.push("", rulesPath);
+    }
+  }
 
   let lastError: NodeJS.ErrnoException | null = null;
 
@@ -115,6 +129,43 @@ function parseResultName(stdout: string): string | null {
   return null;
 }
 
+function sanitizeRules(input: unknown): MappingRulePayload[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  return input
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const raw = entry as Record<string, unknown>;
+      const targetValue = raw.target;
+      const target =
+        typeof targetValue === "string"
+          ? targetValue.trim()
+          : targetValue === undefined || targetValue === null
+            ? ""
+            : String(targetValue).trim();
+
+      if (!target) {
+        return null;
+      }
+
+      const ruleValue = raw.rule;
+      const rule =
+        typeof ruleValue === "string"
+          ? ruleValue.trim()
+          : ruleValue === undefined || ruleValue === null
+            ? ""
+            : String(ruleValue).trim();
+
+      return { target, rule } satisfies MappingRulePayload;
+    })
+    .filter((value): value is MappingRulePayload => value !== null);
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const formData = await req.formData();
@@ -130,10 +181,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const requestedName = computeOutputName(file.name);
     const runtimeName = `${randomUUID()}-${requestedName}`;
 
+    const rawRules = formData.get("rules");
+    let runtimeRulesPath: string | undefined;
+
     try {
+      if (typeof rawRules === "string" && rawRules.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(rawRules);
+          const sanitized = sanitizeRules(parsed);
+          const rulesFile = `${randomUUID()}-mapping-rules.json`;
+          const rulesPath = path.join(TMP_DIR, rulesFile);
+          await writeFile(rulesPath, JSON.stringify(sanitized), "utf-8");
+          cleanupTargets.add(rulesPath);
+          runtimeRulesPath = rulesPath;
+        } catch (error) {
+          console.error("Invalid mapping rules payload", error);
+          return new NextResponse("Le format des règles est invalide", { status: 400 });
+        }
+      }
+
       let result;
       try {
-        result = await runPythonMapping(inputPath, TMP_DIR, runtimeName);
+        result = await runPythonMapping(inputPath, TMP_DIR, runtimeName, runtimeRulesPath);
       } catch (error) {
         console.error("Failed to start Python mapping", error);
         const code =
