@@ -6,16 +6,33 @@ import * as XLSX from "xlsx";
 
 import { useLanguage } from "../../components/language-provider";
 
-type MappingRuleRow = {
-  id: string;
-  target: string;
-  instruction: string;
-};
-
 type MappingRulePayload = {
   target: string;
   rule: string;
 };
+
+type MappingRuleType =
+  | "COLUMN"
+  | "INVARIABLE"
+  | "MAPPING"
+  | "NS"
+  | "CONCAT"
+  | "CUSTOM"
+  | "EMPTY";
+
+type MappingRuleRow = {
+  id: string;
+  target: string;
+  type: MappingRuleType;
+  sourceColumn?: string;
+  mappingSheet?: string;
+  fixedValue?: string;
+  sequencePattern?: string;
+  concatExpression?: string;
+  customInstruction?: string;
+};
+
+type ParsedInstruction = Omit<MappingRuleRow, "id" | "target">;
 
 type StatusState =
   | { type: "idle" }
@@ -51,6 +68,191 @@ function normalizeCell(value: unknown): string {
   return String(value).trim();
 }
 
+function extractTemplateFields(sheet?: XLSX.WorkSheet): string[] {
+  if (!sheet) return [];
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, blankrows: false });
+  if (rows.length === 0) return [];
+  const headerRow =
+    rows.find((row) =>
+      row.some((cell) => {
+        if (cell === undefined || cell === null) return false;
+        return String(cell).trim().length > 0;
+      }),
+    ) ?? [];
+  return headerRow
+    .map((cell) => (cell === undefined || cell === null ? "" : String(cell).trim()))
+    .filter((value) => value.length > 0);
+}
+
+function createRuleConfig(type: MappingRuleType): ParsedInstruction {
+  const base: ParsedInstruction = {
+    type,
+    sourceColumn: undefined,
+    mappingSheet: undefined,
+    fixedValue: undefined,
+    sequencePattern: undefined,
+    concatExpression: undefined,
+    customInstruction: undefined,
+  };
+
+  switch (type) {
+    case "COLUMN":
+      return { ...base, sourceColumn: "" };
+    case "INVARIABLE":
+      return { ...base, fixedValue: "" };
+    case "MAPPING":
+      return { ...base, sourceColumn: "", mappingSheet: "" };
+    case "NS":
+      return { ...base, sequencePattern: "" };
+    case "CONCAT":
+      return { ...base, concatExpression: "" };
+    case "CUSTOM":
+      return { ...base, customInstruction: "" };
+    case "EMPTY":
+    default:
+      return { ...base, type: "EMPTY" };
+  }
+}
+
+function createRuleRow(type: MappingRuleType = "COLUMN"): MappingRuleRow {
+  return {
+    id: createId(),
+    target: "",
+    ...createRuleConfig(type),
+  };
+}
+
+function parseInstruction(instruction: string): ParsedInstruction {
+  const cleaned = normalizeCell(instruction);
+
+  if (!cleaned) {
+    return createRuleConfig("EMPTY");
+  }
+
+  if (cleaned.startsWith("COLUMN=")) {
+    return {
+      ...createRuleConfig("COLUMN"),
+      sourceColumn: cleaned.slice("COLUMN=".length).trim(),
+    };
+  }
+
+  if (cleaned.startsWith("INVARIABLE=")) {
+    return {
+      ...createRuleConfig("INVARIABLE"),
+      fixedValue: cleaned.slice("INVARIABLE=".length).trim(),
+    };
+  }
+
+  if (cleaned.startsWith("MAPPING=")) {
+    const tail = cleaned.slice("MAPPING=".length).trim();
+    const [source = "", sheet = ""] = tail.split(";", 2).map((segment) => segment.trim());
+    return {
+      ...createRuleConfig("MAPPING"),
+      sourceColumn: source,
+      mappingSheet: sheet,
+    };
+  }
+
+  if (cleaned.startsWith("NS=")) {
+    return {
+      ...createRuleConfig("NS"),
+      sequencePattern: cleaned.slice("NS=".length).trim(),
+    };
+  }
+
+  const concatMatch = cleaned.match(/^'?CONCAT=(.*)$/i);
+  if (concatMatch) {
+    return {
+      ...createRuleConfig("CONCAT"),
+      concatExpression: concatMatch[1].trim(),
+    };
+  }
+
+  if (cleaned.includes("+") && !cleaned.includes("=")) {
+    return {
+      ...createRuleConfig("CONCAT"),
+      concatExpression: cleaned,
+    };
+  }
+
+  return {
+    ...createRuleConfig("CUSTOM"),
+    customInstruction: cleaned,
+  };
+}
+
+function buildInstruction(rule: MappingRuleRow): string {
+  switch (rule.type) {
+    case "COLUMN": {
+      const source = rule.sourceColumn?.trim() ?? "";
+      return source ? `COLUMN=${source}` : "";
+    }
+    case "INVARIABLE": {
+      const value = rule.fixedValue?.trim() ?? "";
+      return `INVARIABLE=${value}`;
+    }
+    case "MAPPING": {
+      const source = rule.sourceColumn?.trim() ?? "";
+      const sheet = rule.mappingSheet?.trim() ?? "";
+      if (!source && !sheet) {
+        return "";
+      }
+      return `MAPPING=${source};${sheet}`;
+    }
+    case "NS": {
+      const pattern = rule.sequencePattern?.trim() ?? "";
+      return pattern ? `NS=${pattern}` : "";
+    }
+    case "CONCAT": {
+      const expression = rule.concatExpression?.trim() ?? "";
+      if (!expression) {
+        return "";
+      }
+      if (/^'?CONCAT=/i.test(expression)) {
+        return expression;
+      }
+      return `CONCAT=${expression}`;
+    }
+    case "CUSTOM":
+      return rule.customInstruction?.trim() ?? "";
+    case "EMPTY":
+    default:
+      return "";
+  }
+}
+
+function isRuleIncomplete(rule: MappingRuleRow): boolean {
+  switch (rule.type) {
+    case "COLUMN":
+      return !rule.sourceColumn?.trim();
+    case "INVARIABLE":
+      return !rule.fixedValue?.trim();
+    case "MAPPING":
+      return !rule.sourceColumn?.trim() || !rule.mappingSheet?.trim();
+    case "NS":
+      return !rule.sequencePattern?.trim();
+    case "CONCAT":
+      return !rule.concatExpression?.trim();
+    case "CUSTOM":
+      return !rule.customInstruction?.trim();
+    case "EMPTY":
+    default:
+      return false;
+  }
+}
+
+function InfoIcon({ title }: { title: string }) {
+  return (
+    <span
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold text-slate-500 transition-colors hover:border-emerald-400 hover:text-emerald-500 dark:border-slate-600 dark:text-slate-300 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+      title={title}
+      aria-label={title}
+    >
+      i
+    </span>
+  );
+}
+
 function parseParametersSheet(sheet: XLSX.WorkSheet): MappingRuleRow[] {
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
@@ -82,10 +284,12 @@ function parseParametersSheet(sheet: XLSX.WorkSheet): MappingRuleRow[] {
       return acc;
     }
 
+    const parsed = parseInstruction(instruction);
+
     acc.push({
       id: createId(),
       target,
-      instruction,
+      ...parsed,
     });
 
     return acc;
@@ -102,7 +306,7 @@ function serializeRulesForBackend(rules: MappingRuleRow[]): MappingRulePayload[]
 
       return {
         target,
-        rule: rule.instruction.trim(),
+        rule: buildInstruction(rule),
       } satisfies MappingRulePayload;
     })
     .filter((value): value is MappingRulePayload => value !== null);
@@ -116,6 +320,7 @@ export default function MappingPage() {
   const [rulesEdited, setRulesEdited] = useState<boolean>(false);
   const [rulesOpen, setRulesOpen] = useState<boolean>(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [templateColumns, setTemplateColumns] = useState<string[]>([]);
 
   const { content } = useLanguage();
   const { mapping, common } = content;
@@ -138,6 +343,7 @@ export default function MappingPage() {
   })();
 
   const hasMissingTarget = useMemo(() => rules.some((rule) => !rule.target.trim()), [rules]);
+  const hasInvalidDetails = useMemo(() => rules.some((rule) => isRuleIncomplete(rule)), [rules]);
 
   function openFileDialog() {
     fileInputRef.current?.click();
@@ -164,6 +370,7 @@ export default function MappingPage() {
     setRulesOpen(false);
     setDownloadUrl(null);
     setStatus({ type: "idle" });
+    setTemplateColumns([]);
   }
 
   function updateRule(id: string, updates: Partial<MappingRuleRow>) {
@@ -173,15 +380,159 @@ export default function MappingPage() {
     markRulesEdited();
   }
 
+  function changeRuleType(id: string, type: MappingRuleType) {
+    setRules((previous) =>
+      previous.map((rule) => (rule.id === id ? { ...rule, ...createRuleConfig(type) } : rule)),
+    );
+    markRulesEdited();
+  }
+
+  function renderRuleFields(rule: MappingRuleRow) {
+    switch (rule.type) {
+      case "COLUMN":
+        return (
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.column.sourceLabel}
+            </label>
+            {templateColumns.length > 0 ? (
+              <select
+                value={rule.sourceColumn ?? ""}
+                onChange={(event) => updateRule(rule.id, { sourceColumn: event.target.value })}
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value="">{mapping.rules.fields.column.sourcePlaceholder}</option>
+                {templateColumns.map((col) => (
+                  <option key={col} value={col}>
+                    {col}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={rule.sourceColumn ?? ""}
+                onChange={(event) => updateRule(rule.id, { sourceColumn: event.target.value })}
+                placeholder={mapping.rules.fields.column.sourcePlaceholder}
+                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              />
+            )}
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.column.helper}
+            </p>
+          </div>
+        );
+      case "INVARIABLE":
+        return (
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.invariable.valueLabel}
+            </label>
+            <input
+              value={rule.fixedValue ?? ""}
+              onChange={(event) => updateRule(rule.id, { fixedValue: event.target.value })}
+              placeholder={mapping.rules.fields.invariable.valuePlaceholder}
+              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.invariable.helper}
+            </p>
+          </div>
+        );
+      case "MAPPING":
+        return (
+          <div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  {mapping.rules.fields.mapping.sourceLabel}
+                </label>
+                <input
+                  value={rule.sourceColumn ?? ""}
+                  onChange={(event) => updateRule(rule.id, { sourceColumn: event.target.value })}
+                  placeholder={mapping.rules.fields.mapping.sourcePlaceholder}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  {mapping.rules.fields.mapping.sheetLabel}
+                </label>
+                <input
+                  value={rule.mappingSheet ?? ""}
+                  onChange={(event) => updateRule(rule.id, { mappingSheet: event.target.value })}
+                  placeholder={mapping.rules.fields.mapping.sheetPlaceholder}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                />
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.mapping.helper}
+            </p>
+          </div>
+        );
+      case "NS":
+        return (
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.ns.patternLabel}
+            </label>
+            <input
+              value={rule.sequencePattern ?? ""}
+              onChange={(event) => updateRule(rule.id, { sequencePattern: event.target.value })}
+              placeholder={mapping.rules.fields.ns.patternPlaceholder}
+              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.ns.helper}
+            </p>
+          </div>
+        );
+      case "CONCAT":
+        return (
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.concat.expressionLabel}
+            </label>
+            <textarea
+              value={rule.concatExpression ?? ""}
+              onChange={(event) => updateRule(rule.id, { concatExpression: event.target.value })}
+              placeholder={mapping.rules.fields.concat.expressionPlaceholder}
+              className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.concat.helper}
+            </p>
+          </div>
+        );
+      case "CUSTOM":
+        return (
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.custom.instructionLabel}
+            </label>
+            <textarea
+              value={rule.customInstruction ?? ""}
+              onChange={(event) => updateRule(rule.id, { customInstruction: event.target.value })}
+              placeholder={mapping.rules.fields.custom.instructionPlaceholder}
+              className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {mapping.rules.fields.custom.helper}
+            </p>
+          </div>
+        );
+      case "EMPTY":
+      default:
+        return (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {mapping.rules.fields.empty.helper}
+          </p>
+        );
+    }
+  }
+
   function addRule() {
-    setRules((previous) => [
-      ...previous,
-      {
-        id: createId(),
-        target: "",
-        instruction: "",
-      },
-    ]);
+    setRules((previous) => [...previous, createRuleRow()]);
     setRulesOpen(true);
     markRulesEdited();
   }
@@ -209,6 +560,9 @@ export default function MappingPage() {
       const data = await selected.arrayBuffer();
       const workbook = XLSX.read(data);
       const parametersSheet = workbook.Sheets["Parameters"];
+      const templateSheet = workbook.Sheets["Template"];
+      const cols = extractTemplateFields(templateSheet);
+      setTemplateColumns(cols);
 
       if (parametersSheet) {
         const parsedRules = parseParametersSheet(parametersSheet);
@@ -277,7 +631,7 @@ export default function MappingPage() {
   }
 
   const isProcessing = status.type === "processing";
-  const canLaunch = Boolean(file) && !isProcessing && !hasMissingTarget;
+  const canLaunch = Boolean(file) && !isProcessing && !hasMissingTarget && !hasInvalidDetails;
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 transition-colors duration-300 dark:bg-slate-950 md:p-10">
@@ -390,6 +744,7 @@ export default function MappingPage() {
                       <div className="space-y-5">
                         {rules.map((rule, index) => {
                           const missingTarget = !rule.target.trim();
+                          const missingDetails = isRuleIncomplete(rule);
                           return (
                             <div
                               key={rule.id}
@@ -423,17 +778,40 @@ export default function MappingPage() {
                                     ) : null}
                                   </div>
                                   <div>
-                                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                      {mapping.rules.instructionLabel}
-                                    </label>
-                                    <textarea
-                                      value={rule.instruction}
-                                      onChange={(event) => updateRule(rule.id, { instruction: event.target.value })}
-                                      placeholder={mapping.rules.instructionPlaceholder}
-                                      className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                      {mapping.rules.instructionHint}
+                                    <div className="flex items-center gap-2">
+                                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                        {mapping.rules.typeLabel}
+                                      </label>
+                                      <InfoIcon title={mapping.rules.typeHelper} />
+                                    </div>
+                                    <select
+                                      value={rule.type}
+                                      onChange={(event) =>
+                                        changeRuleType(rule.id, event.target.value as MappingRuleType)
+                                      }
+                                      className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                    >
+                                      <option value="COLUMN">{mapping.rules.typeOptions.column}</option>
+                                      <option value="MAPPING">{mapping.rules.typeOptions.mapping}</option>
+                                      <option value="INVARIABLE">{mapping.rules.typeOptions.invariable}</option>
+                                      <option value="NS">{mapping.rules.typeOptions.ns}</option>
+                                      <option value="CONCAT">{mapping.rules.typeOptions.concat}</option>
+                                      <option value="CUSTOM">{mapping.rules.typeOptions.custom}</option>
+                                      <option value="EMPTY">{mapping.rules.typeOptions.empty}</option>
+                                    </select>
+                                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                      {mapping.rules.typeDescriptions[rule.type]}
+                                    </p>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {renderRuleFields(rule)}
+                                    {missingDetails ? (
+                                      <p className="text-xs text-red-600 dark:text-red-400">
+                                        {mapping.rules.detailError}
+                                      </p>
+                                    ) : null}
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                      {mapping.rules.examples[rule.type]}
                                     </p>
                                   </div>
                                 </div>
@@ -478,6 +856,11 @@ export default function MappingPage() {
               {hasMissingTarget ? (
                 <p className="text-xs font-medium text-red-600 dark:text-red-400">
                   {mapping.rules.launchWarning}
+                </p>
+              ) : null}
+              {hasInvalidDetails ? (
+                <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                  {mapping.rules.detailWarning}
                 </p>
               ) : null}
             </div>
