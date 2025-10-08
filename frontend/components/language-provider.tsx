@@ -29,6 +29,67 @@ const translations = {
         },
       },
     },
+    common: {
+      backToHome: "Revenir à l'accueil",
+    },
+    home: {
+      badge: "Portail DMF",
+      title: "Choisissez votre parcours",
+      description:
+        "Sélectionnez le module adapté à votre besoin : revue des fichiers ou génération d'un fichier mappé.",
+      options: {
+        review: {
+          label: "Review files",
+          title: "Valider vos fichiers DMF",
+          description:
+            "Retrouvez le processus historique pour analyser les règles, les ajuster et lancer la validation Python.",
+          action: "Accéder à la validation",
+        },
+        mapping: {
+          label: "Mapping files",
+          title: "Générer un fichier mappé",
+          description:
+            "Exécutez le script de mapping pour transformer un template Excel selon vos règles Parameters.",
+          action: "Accéder au mapping",
+        },
+      },
+    },
+    mapping: {
+      hero: {
+        badge: "Mapping Excel",
+        title: "Générez votre fichier mappé",
+        description:
+          "Utilisez le moteur Python pour appliquer vos règles Parameters et produire automatiquement un fichier mappé.",
+        uploadLabel: "Déposez ou sélectionnez votre fichier Template",
+        uploadHint: "Feuilles nécessaires : Template, Parameters et onglets de mapping associés",
+        unknownType: "Type non défini",
+      },
+      actions: {
+        selectFile: "Sélectionner un fichier",
+        changeFile: "Changer de fichier",
+        removeFile: "Retirer le fichier",
+        start: "Lancer le mapping",
+        processing: "Mapping en cours…",
+        download: "Télécharger le résultat",
+      },
+      status: {
+        idle: "Importez un fichier Excel pour démarrer le mapping.",
+        ready: (filename: string) => `Fichier prêt : ${filename}.`,
+        processing: (filename: string) => `Mapping en cours pour ${filename}…`,
+        success: (originalName: string) => `Mapping terminé. Téléchargez ${originalName}.`,
+        error: (message: string) => `Erreur lors du mapping : ${message}`,
+        genericError: "Le service de mapping a renvoyé une erreur.",
+        networkError: "Erreur réseau : impossible de contacter le service de mapping.",
+      },
+      tips: {
+        title: "Conseils d'utilisation",
+        items: [
+          "Assurez-vous que les onglets Template et Parameters sont présents et complétés.",
+          "Les feuilles mentionnées dans les règles MAPPING= doivent exister dans votre fichier Excel.",
+          "Le fichier généré porte automatiquement le suffixe _mapping pour être identifié facilement.",
+        ],
+      },
+    },
     hero: {
       title: "Validation DMF",
       description:
@@ -135,6 +196,67 @@ const translations = {
           label: "English",
           title: "Switch interface to English",
         },
+      },
+    },
+    common: {
+      backToHome: "Back to home",
+    },
+    home: {
+      badge: "DMF workspace",
+      title: "Choose your workflow",
+      description:
+        "Pick the module that matches your needs: review existing files or generate a mapped file.",
+      options: {
+        review: {
+          label: "Review files",
+          title: "Validate your DMF files",
+          description:
+            "Use the historical process to inspect the rules, adjust them and launch the Python validation.",
+          action: "Go to validation",
+        },
+        mapping: {
+          label: "Mapping files",
+          title: "Produce a mapped file",
+          description:
+            "Run the mapping script on your Excel template to generate the transformed workbook.",
+          action: "Go to mapping",
+        },
+      },
+    },
+    mapping: {
+      hero: {
+        badge: "Excel mapping",
+        title: "Generate your mapped file",
+        description:
+          "Use the Python engine to apply the Parameters rules and automatically produce a mapped workbook.",
+        uploadLabel: "Drop or select your Template file",
+        uploadHint: "Required sheets: Template, Parameters and referenced mapping tabs",
+        unknownType: "Unknown type",
+      },
+      actions: {
+        selectFile: "Select a file",
+        changeFile: "Change file",
+        removeFile: "Remove file",
+        start: "Run mapping",
+        processing: "Mapping…",
+        download: "Download result",
+      },
+      status: {
+        idle: "Import an Excel file to start the mapping process.",
+        ready: (filename: string) => `File ready: ${filename}.`,
+        processing: (filename: string) => `Mapping in progress for ${filename}…`,
+        success: (originalName: string) => `Mapping completed. Download ${originalName}.`,
+        error: (message: string) => `Mapping error: ${message}`,
+        genericError: "The mapping service returned an error.",
+        networkError: "Network error: unable to reach the mapping service.",
+      },
+      tips: {
+        title: "Tips for best results",
+        items: [
+          "Ensure the Template and Parameters sheets are present and filled in.",
+          "Sheets referenced in MAPPING= rules must exist in your workbook.",
+          "The generated file automatically receives the _mapping suffix for easier identification.",
+        ],
       },
     },
     hero: {
