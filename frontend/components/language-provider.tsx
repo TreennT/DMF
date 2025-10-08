@@ -39,17 +39,17 @@ const translations = {
         "Sélectionnez le module adapté à votre besoin : revue des fichiers ou génération d'un fichier mappé.",
       options: {
         review: {
-          label: "Review files",
+          label: "Vérifier les fichiers",
           title: "Valider vos fichiers DMF",
           description:
             "Retrouvez le processus historique pour analyser les règles, les ajuster et lancer la validation Python.",
           action: "Accéder à la validation",
         },
         mapping: {
-          label: "Mapping files",
-          title: "Générer un fichier mappé",
+          label: "Fichier mappé",
+          title: "Générez votre fichier mappé",
           description:
-            "Exécutez le script de mapping pour transformer un template Excel selon vos règles Rules.",
+            "Exécutez le script de mapping pour transformer un template Excel selon vos règles personnalisées.",
           action: "Accéder au mapping",
         },
       },
@@ -59,7 +59,7 @@ const translations = {
         badge: "Mapping Excel",
         title: "Générez votre fichier mappé",
         description:
-          "Utilisez le moteur Python pour appliquer vos règles Rules et produire automatiquement un fichier mappé.",
+          "Utilisez le moteur Python pour appliquer vos règles de mapping et produire automatiquement un fichier mappé.",
         uploadLabel: "Déposez ou sélectionnez votre fichier Template",
         uploadHint: "Feuilles nécessaires : Template, Règles et onglets de mapping associés",
         unknownType: "Type non défini",
@@ -171,11 +171,11 @@ const translations = {
           },
         },
         examples: {
-          COLUMN: "Ex. : copie la colonne 'AccountNumber'.",
-          MAPPING: "Ex. : cherche 'Country' dans la feuille 'Country'.",
+          COLUMN: "Ex. : copie la colonne 'NuméroCompte'.",
+          MAPPING: "Ex. : cherche 'Pays' dans la feuille 'Pays'.",
           INVARIABLE: "Ex. : met 'France' sur toutes les lignes.",
           NS: "Ex. : DMF### donne DMF001, DMF002…",
-          CONCAT: "Ex. : Account + ' - ' + Name.",
+          CONCAT: "Ex. : COLONNE1 + ' - ' + COLONNE2.",
           CUSTOM: "Instruction avancée si nécessaire.",
           EMPTY: "Colonne vide (aucune instruction).",
         },
@@ -333,9 +333,9 @@ const translations = {
         badge: "Excel mapping",
         title: "Generate your mapped file",
         description:
-          "Use the Python engine to apply the Rules rules and automatically produce a mapped workbook.",
+          "Use the Python engine to apply the Rules sheet instructions and automatically produce a mapped workbook.",
         uploadLabel: "Drop or select your Template file",
-        uploadHint: "Required sheets: Template, Règles and referenced mapping tabs",
+        uploadHint: "Required sheets: Template, Rules and referenced mapping tabs",
         unknownType: "Unknown type",
       },
       actions: {
@@ -357,7 +357,7 @@ const translations = {
       },
       rules: {
         summary: (count: number) =>
-          count > 0 ? `${count} Rules` : "Show Rules",
+          count > 0 ? `${count} rule${count > 1 ? "s" : ""}` : "Show rules",
         editedBadge: "Edited",
         description: "Review and tweak the instructions coming from the Rules sheet.",
         helper: "Changes are sent to the Python script as JSON overrides.",
