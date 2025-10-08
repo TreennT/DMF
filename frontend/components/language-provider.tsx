@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   createContext,
@@ -13,15 +13,15 @@ import {
 const translations = {
   fr: {
     themeToggle: {
-      toLight: "Passer au thÃ¨me clair",
-      toDark: "Passer au thÃ¨me sombre",
+      toLight: "Passer au thème clair",
+      toDark: "Passer au thème sombre",
     },
     languageToggle: {
       label: "Choisir la langue",
       languages: {
         fr: {
-          label: "FranÃ§ais",
-          title: "Afficher l'interface en franÃ§ais",
+          label: "Français",
+          title: "Afficher l'interface en français",
         },
         en: {
           label: "Anglais",
@@ -30,196 +30,194 @@ const translations = {
       },
     },
     common: {
-      backToHome: "Revenir Ã  l'accueil",
+      backToHome: "Revenir à l'accueil",
     },
     home: {
       badge: "Portail DMF",
       title: "Choisissez votre parcours",
       description:
-        "SÃ©lectionnez le module adaptÃ© Ã  votre besoin : revue des fichiers ou gÃ©nÃ©ration d'un fichier mappÃ©.",
+        "Sélectionnez le module adapté à votre besoin : revue des fichiers ou génération d'un fichier mappé.",
       options: {
         review: {
           label: "Review files",
           title: "Valider vos fichiers DMF",
           description:
-            "Retrouvez le processus historique pour analyser les rÃ¨gles, les ajuster et lancer la validation Python.",
-          action: "AccÃ©der Ã  la validation",
+            "Retrouvez le processus historique pour analyser les règles, les ajuster et lancer la validation Python.",
+          action: "Accéder à la validation",
         },
         mapping: {
           label: "Mapping files",
-          title: "GÃ©nÃ©rer un fichier mappÃ©",
+          title: "Générer un fichier mappé",
           description:
-            "ExÃ©cutez le script de mapping pour transformer un template Excel selon vos rÃ¨gles Rules.",
-          action: "AccÃ©der au mapping",
+            "Exécutez le script de mapping pour transformer un template Excel selon vos règles Rules.",
+          action: "Accéder au mapping",
         },
       },
     },
     mapping: {
       hero: {
         badge: "Mapping Excel",
-        title: "GÃ©nÃ©rez votre fichier mappÃ©",
+        title: "Générez votre fichier mappé",
         description:
-          "Utilisez le moteur Python pour appliquer vos rÃ¨gles Rules et produire automatiquement un fichier mappÃ©.",
-        uploadLabel: "DÃ©posez ou sÃ©lectionnez votre fichier Template",
-        uploadHint: "Feuilles nÃ©cessaires : Template, Règles et onglets de mapping associÃ©s",
-        unknownType: "Type non dÃ©fini",
+          "Utilisez le moteur Python pour appliquer vos règles Rules et produire automatiquement un fichier mappé.",
+        uploadLabel: "Déposez ou sélectionnez votre fichier Template",
+        uploadHint: "Feuilles nécessaires : Template, Règles et onglets de mapping associés",
+        unknownType: "Type non défini",
       },
       actions: {
-        selectFile: "SÃ©lectionner un fichier",
+        selectFile: "Sélectionner un fichier",
         changeFile: "Changer de fichier",
         removeFile: "Retirer le fichier",
         start: "Lancer le mapping",
-        processing: "Mapping en coursâ€¦",
-        download: "TÃ©lÃ©charger le rÃ©sultat",
+        processing: "Mapping en cours…",
+        download: "Télécharger le résultat",
       },
       status: {
-        idle: "Importez un fichier Excel pour dÃ©marrer le mapping.",
-        ready: (filename: string) => `Fichier prÃªt : ${filename}.`,
-        processing: (filename: string) => `Mapping en cours pour ${filename}â€¦`,
-        success: (originalName: string) => `Mapping terminÃ©. TÃ©lÃ©chargez ${originalName}.`,
+        idle: "Importez un fichier Excel pour démarrer le mapping.",
+        ready: (filename: string) => `Fichier prêt : ${filename}.`,
+        processing: (filename: string) => `Mapping en cours pour ${filename}…`,
+        success: (originalName: string) => `Mapping terminé. Téléchargez ${originalName}.`,
         error: (message: string) => `Erreur lors du mapping : ${message}`,
-        genericError: "Le service de mapping a renvoyÃ© une erreur.",
-        networkError: "Erreur rÃ©seau : impossible de contacter le service de mapping.",
+        genericError: "Le service de mapping a renvoyé une erreur.",
+        networkError: "Erreur réseau : impossible de contacter le service de mapping.",
       },
       rules: {
         summary: (count: number) =>
           count > 0
-            ? `${count} rÃ¨gle${count > 1 ? "s" : ""} Rules`
-            : "Afficher les rÃ¨gles Rules",
-        editedBadge: "ModifiÃ©",
-        description: "PrÃ©visualisez et ajustez les instructions de la feuille Règles.",
-        helper: "Les changements seront envoyÃ©s au script Python sous forme de JSON.",
+            ? `${count} règle${count > 1 ? "s" : ""}`
+            : "Afficher les règles",
+        editedBadge: "Modifié",
+        description: "Prévisualisez et ajustez les instructions de la feuille Règles.",
+        helper: "Les changements seront envoyés au script Python sous forme de JSON.",
         emptyState: {
           description:
-            "Aucune rÃ¨gle dÃ©tectÃ©e. CrÃ©ez des instructions manuellement pour les colonnes Ã  gÃ©nÃ©rer.",
+            "Aucune règle détectée. Créez des instructions manuellement pour les colonnes à générer.",
         },
-        addButton: "Ajouter une rÃ¨gle",
+        addButton: "Ajouter une règle",
         removeButton: "Supprimer",
-        ruleLabel: (index: number) => `RÃ¨gle ${index}`,
+        ruleLabel: (index: number) => `Règle ${index}`,
         targetLabel: "Colonne cible",
-        targetPlaceholder: "Nom de la colonne gÃ©nÃ©rÃ©e",
+        targetPlaceholder: "Nom de la colonne générée",
         targetError: "La colonne cible est obligatoire.",
-        typeLabel: "Type de rÃ¨gle / Rule type",
-        typeHelper:
-          "Choisissez comment remplir la colonne cible / Choose how to populate the target column.",
+        typeLabel: "Type de règle",
+        typeHelper: "Choisissez comment remplir la colonne cible.",
         typeOptions: {
-          column: "Copier une colonne du Template / Copy a Template column",
-          mapping: "Feuille de correspondance / Mapping sheet lookup",
-          invariable: "Valeur fixe / Fixed value",
-          ns: "Numérotation / Sequential numbering",
-          concat: "Assembler des champs / Concatenate fields",
-          custom: "Instruction avancée / Advanced instruction",
-          empty: "Colonne vide / Empty column",
+          column: "Copier une colonne du Template",
+          mapping: "Feuille de correspondance",
+          invariable: "Valeur fixe",
+          ns: "Numérotation",
+          concat: "Assembler des champs",
+          custom: "Instruction avancée",
+          empty: "Colonne vide",
         },
         typeDescriptions: {
           COLUMN:
-            "Reproduit une colonne existante du Template. / Copies an existing Template column.",
+            "Reproduit une colonne existante du Template.",
           MAPPING:
-            "Recherche une valeur dans une feuille annexe Ã  partir d'une colonne du Template. / Looks up values from another sheet based on a Template column.",
+            "Recherche une valeur dans une feuille annexe à partir d'une colonne du Template.",
           INVARIABLE:
-            "Applique la mÃªme valeur sur toutes les lignes. / Applies the same value to every row.",
+            "Applique la même valeur sur toutes les lignes.",
           NS:
-            "GÃ©nÃ¨re une sÃ©quence numÃ©rique selon le motif fourni (# pour les chiffres). / Generates a numeric sequence from the provided pattern (# for digits).",
+            "Génère une séquence numérique selon le motif fourni (# pour les chiffres).",
           CONCAT:
-            "Assemble plusieurs colonnes et textes pour produire la valeur finale. / Concatenates multiple columns or literals into the final value.",
+            "Assemble plusieurs colonnes et textes pour produire la valeur finale.",
           CUSTOM:
-            "Saisissez une instruction Rules personnalisÃ©e. / Enter a custom Rules instruction.",
+            "Saisissez une instruction Rules personnalisée.",
           EMPTY:
-            "CrÃ©e une colonne vide tout en conservant l'en-tÃªte. / Creates an empty column while keeping the header.",
+            "Crée une colonne vide tout en conservant l'en-tête.",
         },
         fields: {
           column: {
-            sourceLabel: "Colonne source Template / Template source column",
-            sourcePlaceholder: "Choisir une colonne / Select a column",
+            sourceLabel: "Colonne source Template",
+            sourcePlaceholder: "Choisir une colonne",
             helper:
-              "Indiquez le nom exact de la colonne Ã  recopier depuis la feuille Template. / Provide the exact Template column name to copy.",
+              "Indiquez le nom exact de la colonne à recopier depuis la feuille Template.",
           },
           invariable: {
-            valueLabel: "Valeur appliquÃ©e / Applied value",
+            valueLabel: "Valeur appliquée",
             valuePlaceholder: "Ex : France",
             helper:
-              "La valeur saisie sera Ã©crite sur chaque ligne du fichier mappÃ©. / This value will be written on every row of the mapped file.",
+              "La valeur saisie sera écrite sur chaque ligne du fichier mappé.",
           },
           mapping: {
-            sourceLabel: "Colonne Template / Template column",
-            sourcePlaceholder: "Choisir une colonne / Select a column",
-            sheetLabel: "Feuille de correspondance / Mapping sheet",
+            sourceLabel: "Colonne Template",
+            sourcePlaceholder: "Choisir une colonne",
+            sheetLabel: "Feuille de correspondance",
             sheetPlaceholder: "Ex : Country",
             helper:
-              "Renseignez la colonne Template Ã  rechercher et l'onglet contenant la table de correspondance. / Specify the Template column to search and the sheet containing the lookup table.",
+              "Renseignez la colonne Template à rechercher et l'onglet contenant la table de correspondance.",
           },
           ns: {
-            patternLabel: "Motif de numÃ©rotation / Numbering pattern",
+            patternLabel: "Motif de numérotation",
             patternPlaceholder: "Ex : DMF###",
             helper:
-              "Utilisez # pour chaque chiffre Ã  incrÃ©menter (ex : DMF### donnera DMF001, DMF002, â€¦). / Use # for each digit to increment (e.g. DMF### becomes DMF001, DMF002, ...).",
+              "Utilisez # pour chaque chiffre à incrémenter (ex : DMF### donnera DMF001, DMF002, …).",
           },
           concat: {
-            expressionLabel: "Expression de concatÃ©nation / Concatenation expression",
+            expressionLabel: "Expression de concaténation",
             expressionPlaceholder: "Ex : COLUMN1 + ' - ' + COLUMN2",
             helper:
-              "Combinez des colonnes Template et du texte entre apostrophes. / Combine Template columns and text between quotes.",
+              "Combinez des colonnes Template et du texte entre apostrophes.",
           },
           custom: {
-            instructionLabel: "Instruction personnalisÃ©e / Custom instruction",
-            instructionPlaceholder:
-              "Ex : VALUE=A;B;C / Example: SHEET=AnnuaireCodes",
+            instructionLabel: "Instruction personnalisée",
+            instructionPlaceholder: "Ex : VALUE=A;B;C",
             helper:
-              "Saisissez librement une instruction Rules avancÃ©e. / Enter any advanced Rules instruction.",
+              "Saisissez librement une instruction Rules avancée.",
           },
           empty: {
             helper:
-              "La colonne restera vide ; utilisez-la pour forcer une colonne dans le rÃ©sultat. / The column stays empty; use it to force a column in the result.",
+              "La colonne restera vide ; utilisez-la pour forcer une colonne dans le résultat.",
           },
         },
         examples: {
-  COLUMN: "Ex.: copie la colonne ‘AccountNumber’. / Copies ‘AccountNumber’.",
-  MAPPING: "Ex.: cherche ‘Country’ dans la feuille ‘Country’. / Lookup in ‘Country’ sheet.",
-  INVARIABLE: "Ex.: met ‘France’ sur toutes les lignes. / Puts ‘France’ on every row.",
-  NS: "Ex.: DMF### donne DMF001, DMF002… / DMF### -> DMF001…",
-  CONCAT: "Ex.: Account + ‘ - ’ + Name. / Account + ‘ - ’ + Name.",
-  CUSTOM: "Instruction avancée si nécessaire. / Advanced instruction if needed.",
-  EMPTY: "Colonne vide (aucune instruction). / Empty column (no instruction).",
-},
+          COLUMN: "Ex. : copie la colonne 'AccountNumber'.",
+          MAPPING: "Ex. : cherche 'Country' dans la feuille 'Country'.",
+          INVARIABLE: "Ex. : met 'France' sur toutes les lignes.",
+          NS: "Ex. : DMF### donne DMF001, DMF002…",
+          CONCAT: "Ex. : Account + ' - ' + Name.",
+          CUSTOM: "Instruction avancée si nécessaire.",
+          EMPTY: "Colonne vide (aucune instruction).",
+        },
         detailError:
-          "ComplÃ©tez les informations de la rÃ¨gle sÃ©lectionnÃ©e. / Complete the selected rule information.",
+          "Complétez les informations de la règle sélectionnée.",
         detailWarning:
-          "VÃ©rifiez chaque rÃ¨gle avant de lancer le mapping. / Check every rule before starting the mapping.",
+          "Vérifiez chaque règle avant de lancer le mapping.",
         launchWarning:
-          "ComplÃ©tez toutes les colonnes cibles avant de lancer le mapping. / Fill every target column before running the mapping.",
+          "Complétez toutes les colonnes cibles avant de lancer le mapping.",
       },
       tips: {
         title: "Conseils d'utilisation",
         items: [
-          "Assurez-vous que les onglets Template et Rules sont prÃ©sents et complÃ©tÃ©s.",
-          "Les feuilles mentionnÃ©es dans les rÃ¨gles MAPPING= doivent exister dans votre fichier Excel.",
-          "Le fichier gÃ©nÃ©rÃ© porte automatiquement le suffixe _mapping pour Ãªtre identifiÃ© facilement.",
+          "Assurez-vous que les onglets Template et Rules sont présents et complétés.",
+          "Les feuilles mentionnées dans les règles MAPPING= doivent exister dans votre fichier Excel.",
+          "Le fichier généré porte automatiquement le suffixe _mapping pour être identifié facilement.",
         ],
       },
     },
     hero: {
       title: "Validation DMF",
       description:
-        "DÃ©posez votre template Excel pour visualiser les rÃ¨gles, personnalisez-les dans l'application puis lancez la validation Python.",
-      uploadLabel: "DÃ©poser un fichier Excel",
+        "Déposez votre template Excel pour visualiser les règles, personnalisez-les dans l'application puis lancez la validation Python.",
+      uploadLabel: "Déposer un fichier Excel",
       uploadHint: "Feuilles attendues: Template & ValidationRules",
     },
     rules: {
-      heading: "RÃ¨gles dÃ©tectÃ©es",
+      heading: "Règles détectées",
       description:
-        "InterprÃ©tation lisible de la feuille ValidationRules et Ã©dition directement dans l'interface.",
-      countLabel: (count: number) => `${count} rÃ¨gle${count > 1 ? "s" : ""}`,
-      addButton: "Ajouter une rÃ¨gle",
+        "Interprétation lisible de la feuille ValidationRules et édition directement dans l'interface.",
+      countLabel: (count: number) => `${count} règle${count > 1 ? "s" : ""}`,
+      addButton: "Ajouter une règle",
       tipTitle: "Astuce d'utilisation",
       tips: [
-        "Activez ou dÃ©sactivez les contrÃ´les comme dans la feuille Excel.",
-        "Basculer sur Â« Instruction Â» permet de rÃ©fÃ©rencer une feuille annexe avec SHEET=NomFeuille.",
-        "Ajoutez autant de valeurs autorisÃ©es que nÃ©cessaire en saisissant une valeur par ligne.",
+        "Activez ou désactivez les contrôles comme dans la feuille Excel.",
+        "Basculer sur « Instruction » permet de référencer une feuille annexe avec SHEET=NomFeuille.",
+        "Ajoutez autant de valeurs autorisées que nécessaire en saisissant une valeur par ligne.",
       ],
       emptyState: {
         description:
-          "Aucune rÃ¨gle Ã  afficher pour l'instant. Importez un fichier ou crÃ©ez votre premiÃ¨re rÃ¨gle pour dÃ©marrer la configuration.",
-        action: "CrÃ©er une premiÃ¨re rÃ¨gle",
+          "Aucune règle à afficher pour l'instant. Importez un fichier ou créez votre première règle pour démarrer la configuration.",
+        action: "Créer une première règle",
       },
       field: {
         label: "Champ",
@@ -228,7 +226,7 @@ const translations = {
       },
       removeButton: "Supprimer",
       toggles: {
-        checked: "Checker activÃ©",
+        checked: "Checker activé",
         required: "Champ obligatoire",
       },
       length: {
@@ -241,50 +239,50 @@ const translations = {
         placeholder: "Ex: ^[0-9]{5}$",
       },
       customRule: {
-        label: "RÃ¨gle personnalisÃ©e",
-        placeholder: "Nom de la fonction Python personnalisÃ©e",
+        label: "Règle personnalisée",
+        placeholder: "Nom de la fonction Python personnalisée",
       },
       allowed: {
-        label: "Source des valeurs autorisÃ©es",
+        label: "Source des valeurs autorisées",
         options: {
           list: "Liste de valeurs",
           instruction: "Instruction (VALUE=, SHEET=, etc.)",
         },
-        valuesLabel: "Valeurs autorisÃ©es",
+        valuesLabel: "Valeurs autorisées",
         valuesPlaceholder: "Saisissez une valeur par ligne",
         valuesHint: "Ces valeurs seront converties en instruction VALUE= lors de la validation.",
         instructionLabel: "Instruction AllowedValues",
         instructionPlaceholder: "Ex: SHEET=AnnuaireCodes ou VALUE=A;B;C",
         instructionHint:
-          "Utilisez SHEET=NomFeuille pour charger une feuille annexe ou toute instruction personnalisÃ©e.",
+          "Utilisez SHEET=NomFeuille pour charger une feuille annexe ou toute instruction personnalisée.",
       },
     },
     footer: {
       removeFile: "Supprimer le fichier",
       startValidation: "Lancer la validation Python",
-      validating: "Validationâ€¦",
-      downloadReport: "TÃ©lÃ©charger le rapport",
+      validating: "Validation…",
+      downloadReport: "Télécharger le rapport",
     },
     statuses: {
       default:
-        "Aucun fichier importÃ©. DÃ©posez un template Excel ou crÃ©ez vos rÃ¨gles manuellement.",
-      awaiting: "RÃ¨gles personnalisÃ©es en attente de validation.",
-      newRule: "Nouvelle rÃ¨gle ajoutÃ©e. ComplÃ©tez-la avant la validation.",
-      rulesUpdated: "RÃ¨gles mises Ã  jour.",
-      analyzing: (filename: string) => `Analyse de ${filename}â€¦`,
+        "Aucun fichier importé. Déposez un template Excel ou créez vos règles manuellement.",
+      awaiting: "Règles personnalisées en attente de validation.",
+      newRule: "Nouvelle règle ajoutée. Complétez-la avant la validation.",
+      rulesUpdated: "Règles mises à jour.",
+      analyzing: (filename: string) => `Analyse de ${filename}…`,
       analyzed:
-        "Fichier analysÃ©. Modifiez les rÃ¨gles si nÃ©cessaire avant validation.",
+        "Fichier analysé. Modifiez les règles si nécessaire avant validation.",
       importedTemplate:
-        'Aucune rÃ¨gle trouvÃ©e. Les colonnes de la feuille "Template" ont Ã©tÃ© importÃ©es comme base par dÃ©faut.',
+        'Aucune règle trouvée. Les colonnes de la feuille "Template" ont été importées comme base par défaut.',
       importedNoHeaders:
-        'Aucune rÃ¨gle trouvÃ©e et aucun en-tÃªte dÃ©tectÃ© dans la feuille "Template". Ajoutez vos rÃ¨gles manuellement.',
-      readError: "Erreur lors de la lecture du fichier. VÃ©rifiez le format Excel.",
-      validating: "Validation en coursâ€¦",
+        'Aucune règle trouvée et aucun en-tête détecté dans la feuille "Template". Ajoutez vos règles manuellement.',
+      readError: "Erreur lors de la lecture du fichier. Vérifiez le format Excel.",
+      validating: "Validation en cours…",
       validationError: (message: string) => `Erreur validation: ${message}`,
-      validationFailed: "La validation a Ã©chouÃ©.",
-      validationSuccess: "Validation terminÃ©e.",
+      validationFailed: "La validation a échoué.",
+      validationSuccess: "Validation terminée.",
       networkError:
-        "Erreur rÃ©seau: impossible de contacter le service de validation.",
+        "Erreur réseau: impossible de contacter le service de validation.",
     },
   },
   en: {
@@ -345,13 +343,13 @@ const translations = {
         changeFile: "Change file",
         removeFile: "Remove file",
         start: "Start mapping",
-        processing: "Mapping in progressâ€¦",
+        processing: "Mapping in progress…",
         download: "Download result",
       },
       status: {
         idle: "Upload an Excel file to start the mapping run.",
         ready: (filename: string) => `File ready: ${filename}.`,
-        processing: (filename: string) => `Mapping ${filename}â€¦`,
+        processing: (filename: string) => `Mapping ${filename}…`,
         success: (originalName: string) => `Mapping completed. Download ${originalName}.`,
         error: (message: string) => `Mapping failed: ${message}`,
         genericError: "The mapping service returned an error.",
@@ -359,7 +357,7 @@ const translations = {
       },
       rules: {
         summary: (count: number) =>
-          count > 0 ? `${count} Rules rule${count > 1 ? "s" : ""}` : "Show Rules rules",
+          count > 0 ? `${count} Rules` : "Show Rules",
         editedBadge: "Edited",
         description: "Review and tweak the instructions coming from the Rules sheet.",
         helper: "Changes are sent to the Python script as JSON overrides.",
@@ -372,94 +370,92 @@ const translations = {
         targetLabel: "Target column",
         targetPlaceholder: "Name of the generated column",
         targetError: "Target column is required.",
-        typeLabel: "Rule type / Type de rÃ¨gle",
-        typeHelper:
-          "Choose how to populate the target column / Choisissez comment remplir la colonne cible.",
+        typeLabel: "Rule type",
+        typeHelper: "Choose how to populate the target column.",
         typeOptions: {
-          column: "Copier une colonne du Template / Copy a Template column",
-          mapping: "Feuille de correspondance / Mapping sheet lookup",
-          invariable: "Valeur fixe / Fixed value",
-          ns: "Numérotation / Sequential numbering",
-          concat: "Assembler des champs / Concatenate fields",
-          custom: "Instruction avancée / Advanced instruction",
-          empty: "Colonne vide / Empty column",
+          column: "Copy a Template column",
+          mapping: "Mapping sheet lookup",
+          invariable: "Fixed value",
+          ns: "Sequential numbering",
+          concat: "Concatenate fields",
+          custom: "Advanced instruction",
+          empty: "Empty column",
         },
         typeDescriptions: {
           COLUMN:
-            "Copies an existing column from the Template sheet. / Reproduit une colonne existante du Template.",
+            "Copies an existing column from the Template sheet.",
           MAPPING:
-            "Looks up a value from another sheet using a Template column. / Recherche une valeur dans une feuille annexe Ã  partir d'une colonne du Template.",
+            "Looks up a value from another sheet using a Template column.",
           INVARIABLE:
-            "Applies the same value to every row. / Applique la mÃªme valeur sur toutes les lignes.",
+            "Applies the same value to every row.",
           NS:
-            "Generates a numeric sequence based on the provided pattern (# equals one digit). / GÃ©nÃ¨re une sÃ©quence numÃ©rique selon le motif fourni (# correspond Ã  un chiffre).",
+            "Generates a numeric sequence based on the provided pattern (# equals one digit).",
           CONCAT:
-            "Combines columns and literals into a single result. / Assemble plusieurs colonnes et textes pour produire la valeur finale.",
+            "Combines columns and literals into a single result.",
           CUSTOM:
-            "Enter a custom Rules instruction. / Saisissez une instruction Rules personnalisÃ©e.",
+            "Enter a custom Rules instruction.",
           EMPTY:
-            "Keeps an empty column in the output. / Conserve une colonne vide dans le rÃ©sultat.",
+            "Keeps an empty column in the output.",
         },
         fields: {
           column: {
-            sourceLabel: "Template source column / Colonne source Template",
-            sourcePlaceholder: "Choisir une colonne / Select a column",
+            sourceLabel: "Template source column",
+            sourcePlaceholder: "Select a column",
             helper:
-              "Provide the exact Template column name to copy. / Indiquez le nom exact de la colonne Ã  recopier depuis Template.",
+              "Provide the exact Template column name to copy.",
           },
           invariable: {
-            valueLabel: "Value to apply / Valeur appliquÃ©e",
+            valueLabel: "Value to apply",
             valuePlaceholder: "Eg: France",
             helper:
-              "This value will be written on every row of the mapped file. / Cette valeur sera Ã©crite sur chaque ligne du fichier mappÃ©.",
+              "This value will be written on every row of the mapped file.",
           },
           mapping: {
-            sourceLabel: "Template column / Colonne Template",
-            sourcePlaceholder: "Choisir une colonne / Select a column",
-            sheetLabel: "Mapping sheet / Feuille de correspondance",
+            sourceLabel: "Template column",
+            sourcePlaceholder: "Select a column",
+            sheetLabel: "Mapping sheet",
             sheetPlaceholder: "Eg: Country",
             helper:
-              "Specify the Template column to search and the sheet containing the lookup table. / Renseignez la colonne Template Ã  rechercher et l'onglet contenant la table de correspondance.",
+              "Specify the Template column to search and the sheet containing the lookup table.",
           },
           ns: {
-            patternLabel: "Numbering pattern / Motif de numÃ©rotation",
+            patternLabel: "Numbering pattern",
             patternPlaceholder: "Eg: DMF###",
             helper:
-              "Use # for each incremented digit (e.g. DMF### becomes DMF001, DMF002, â€¦). / Utilisez # pour chaque chiffre incrÃ©mentÃ© (ex. DMF### donnera DMF001, DMF002, â€¦).",
+              "Use # for each incremented digit (e.g. DMF### becomes DMF001, DMF002, …).",
           },
           concat: {
-            expressionLabel: "Concatenation expression / Expression de concatÃ©nation",
+            expressionLabel: "Concatenation expression",
             expressionPlaceholder: "Eg: COLUMN1 + ' - ' + COLUMN2",
             helper:
-              "Combine Template columns and quoted text. / Combinez des colonnes Template et du texte entre apostrophes.",
+              "Combine Template columns and quoted text.",
           },
           custom: {
-            instructionLabel: "Custom instruction / Instruction personnalisÃ©e",
-            instructionPlaceholder:
-              "Eg: VALUE=A;B;C / Ex : SHEET=AnnuaireCodes",
+            instructionLabel: "Custom instruction",
+            instructionPlaceholder: "Eg: VALUE=A;B;C",
             helper:
-              "Enter any advanced Rules instruction. / Saisissez une instruction Rules avancÃ©e.",
+              "Enter any advanced Rules instruction.",
           },
           empty: {
             helper:
-              "The column remains empty; use it to force a header in the result. / La colonne reste vide ; utilisez-la pour forcer un en-tÃªte dans le rÃ©sultat.",
+              "The column remains empty; use it to force a header in the result.",
           },
         },
         examples: {
-  COLUMN: "Ex.: copie la colonne ‘AccountNumber’. / Copies ‘AccountNumber’.",
-  MAPPING: "Ex.: cherche ‘Country’ dans la feuille ‘Country’. / Lookup in ‘Country’ sheet.",
-  INVARIABLE: "Ex.: met ‘France’ sur toutes les lignes. / Puts ‘France’ on every row.",
-  NS: "Ex.: DMF### donne DMF001, DMF002… / DMF### -> DMF001…",
-  CONCAT: "Ex.: Account + ‘ - ’ + Name. / Account + ‘ - ’ + Name.",
-  CUSTOM: "Instruction avancée si nécessaire. / Advanced instruction if needed.",
-  EMPTY: "Colonne vide (aucune instruction). / Empty column (no instruction).",
-},
+          COLUMN: "E.g.: copies the 'AccountNumber' column.",
+          MAPPING: "E.g.: looks up 'Country' in the 'Country' sheet.",
+          INVARIABLE: "E.g.: writes 'France' on every row.",
+          NS: "E.g.: DMF### becomes DMF001, DMF002…",
+          CONCAT: "E.g.: Account + ' - ' + Name.",
+          CUSTOM: "Advanced instruction if needed.",
+          EMPTY: "Empty column (no instruction).",
+        },
         detailError:
-          "Complete the selected rule information. / ComplÃ©tez les informations de la rÃ¨gle sÃ©lectionnÃ©e.",
+          "Complete the selected rule information.",
         detailWarning:
-          "Review every rule before launching the mapping. / VÃ©rifiez chaque rÃ¨gle avant de lancer le mapping.",
+          "Review every rule before launching the mapping.",
         launchWarning:
-          "Fill every target column before running the mapping. / ComplÃ©tez toutes les colonnes cibles avant de lancer le mapping.",
+          "Fill every target column before running the mapping.",
       },
       tips: {
         title: "Usage tips",
@@ -486,7 +482,7 @@ const translations = {
       tipTitle: "Usage tips",
       tips: [
         "Enable or disable controls just like in the Excel sheet.",
-        "Switching to â€œInstructionâ€ lets you reference another sheet with SHEET=SheetName.",
+        "Switching to \"Instruction\" lets you reference another sheet with SHEET=SheetName.",
         "Add as many allowed values as needed by entering one value per line.",
       ],
       emptyState: {
@@ -537,7 +533,7 @@ const translations = {
     footer: {
       removeFile: "Remove file",
       startValidation: "Start Python validation",
-      validating: "Validatingâ€¦",
+      validating: "Validating…",
       downloadReport: "Download report",
     },
     statuses: {
@@ -546,7 +542,7 @@ const translations = {
       awaiting: "Custom rules waiting for validation.",
       newRule: "New rule added. Complete it before running the validation.",
       rulesUpdated: "Rules updated.",
-      analyzing: (filename: string) => `Analyzing ${filename}â€¦`,
+      analyzing: (filename: string) => `Analyzing ${filename}…`,
       analyzed:
         "File analyzed. Edit the rules if needed before validation.",
       importedTemplate:
@@ -554,7 +550,7 @@ const translations = {
       importedNoHeaders:
         'No rules found and no headers detected in the "Template" sheet. Add your rules manually.',
       readError: "Error while reading the file. Check the Excel format.",
-      validating: "Validation in progressâ€¦",
+      validating: "Validation in progress…",
       validationError: (message: string) => `Validation error: ${message}`,
       validationFailed: "Validation failed.",
       validationSuccess: "Validation completed.",
