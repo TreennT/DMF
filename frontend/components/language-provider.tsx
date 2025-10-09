@@ -196,19 +196,30 @@ const translations = {
       },
     },
     hero: {
+      badge: "Validation Excel",
       title: "Validation DMF",
       description:
         "Déposez votre template Excel pour visualiser les règles, personnalisez-les dans l'application puis lancez la validation Python.",
       uploadLabel: "Déposer un fichier Excel",
       uploadHint: "Feuilles attendues: Template & ValidationRules",
+      selectButton: "Sélectionner un fichier",
+      changeButton: "Changer de fichier",
+      unknownType: "Type non défini",
     },
     rules: {
       heading: "Règles détectées",
       description:
         "Interprétation lisible de la feuille ValidationRules et édition directement dans l'interface.",
+      helper:
+        "Les modifications seront envoyées au service Python sous forme de JSON si vous lancez la validation.",
+      summary: (count: number) =>
+        count > 0 ? `${count} règle${count > 1 ? "s" : ""}` : "Afficher les règles",
+      editedBadge: "Modifié",
       countLabel: (count: number) => `${count} règle${count > 1 ? "s" : ""}`,
+      ruleLabel: (index: number) => `Règle ${index}`,
       addButton: "Ajouter une règle",
-      tipTitle: "Astuce d'utilisation",
+      removeButton: "Supprimer",
+      tipTitle: "Conseils d'utilisation",
       tips: [
         "Activez ou désactivez les contrôles comme dans la feuille Excel.",
         "Basculer sur « Instruction » permet de référencer une feuille annexe avec SHEET=NomFeuille.",
@@ -224,7 +235,6 @@ const translations = {
         placeholder: "Nom du champ dans la feuille Template",
         error: "Le nom du champ est requis pour lancer la validation.",
       },
-      removeButton: "Supprimer",
       toggles: {
         checked: "Checker activé",
         required: "Champ obligatoire",
@@ -256,6 +266,10 @@ const translations = {
         instructionHint:
           "Utilisez SHEET=NomFeuille pour charger une feuille annexe ou toute instruction personnalisée.",
       },
+      detailWarning:
+        "Complétez les informations de chaque règle avant de lancer la validation.",
+      launchWarning:
+        "Indiquez un champ pour chaque règle afin de pouvoir lancer la validation.",
     },
     footer: {
       removeFile: "Supprimer le fichier",
@@ -467,18 +481,29 @@ const translations = {
       },
     },
     hero: {
+      badge: "Validation",
       title: "DMF validation",
       description:
         "Drop your Excel template to visualize the rules, customize them in the app, then launch the Python validation.",
       uploadLabel: "Upload an Excel file",
       uploadHint: "Expected sheets: Template & ValidationRules",
+      selectButton: "Select a file",
+      changeButton: "Change file",
+      unknownType: "Unknown type",
     },
     rules: {
       heading: "Detected rules",
       description:
         "Readable interpretation of the ValidationRules sheet with direct editing in the interface.",
+      helper:
+        "Changes will be sent to the Python service as JSON overrides when you launch the validation.",
+      summary: (count: number) =>
+        count > 0 ? `${count} rule${count === 1 ? "" : "s"}` : "Show rules",
+      editedBadge: "Edited",
       countLabel: (count: number) => `${count} rule${count === 1 ? "" : "s"}`,
+      ruleLabel: (index: number) => `Rule ${index}`,
       addButton: "Add a rule",
+      removeButton: "Delete",
       tipTitle: "Usage tips",
       tips: [
         "Enable or disable controls just like in the Excel sheet.",
@@ -495,7 +520,6 @@ const translations = {
         placeholder: "Field name from the Template sheet",
         error: "Field name is required before launching validation.",
       },
-      removeButton: "Delete",
       toggles: {
         checked: "Checker enabled",
         required: "Required field",
@@ -529,6 +553,8 @@ const translations = {
         instructionHint:
           "Use SHEET=SheetName to load an auxiliary sheet or any custom instruction.",
       },
+      detailWarning: "Complete every rule before launching the validation.",
+      launchWarning: "Provide a field name for each rule before starting the validation.",
     },
     footer: {
       removeFile: "Remove file",
