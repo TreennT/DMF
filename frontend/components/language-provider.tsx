@@ -278,28 +278,43 @@ const translations = {
         ],
       },
       allowed: {
-        label: "Source des valeurs autorisées",
-        options: {
-          list: "Liste de valeurs",
-          instruction: "Instruction explicite",
+        modeLabel: "Type de règle AllowedValues",
+        modeHelper: "Choisissez comment définir les valeurs autorisées pour cette colonne.",
+        modes: {
+          none: {
+            label: "Aucune restriction",
+            description: "Aucune instruction AllowedValues n'est envoyée : toutes les valeurs sont acceptées.",
+          },
+          valueList: {
+            label: "Liste de valeurs",
+            description: "Saisissez les entrées autorisées, elles seront converties en VALUE= automatiquement.",
+          },
+          sheetLookup: {
+            label: "Feuille de référence (SHEET=)",
+            description: "Sélectionnez l'onglet Excel contenant la liste de référence.",
+          },
+          customInstruction: {
+            label: "Instruction personnalisée",
+            description: "Collez directement l'instruction attendue par le moteur Python.",
+          },
         },
-        valuesLabel: "Valeurs autorisées",
-        valuesPlaceholder: "Saisissez une valeur par ligne",
-        valuesHint: "Ces valeurs seront converties en instruction VALUE= lors de la validation.",
-        instructionModeLabel: "Forme de la règle AllowedValues",
-        instructionModeOptions: {
-          sheet: "Feuille de référence (SHEET=)",
-          custom: "Instruction personnalisée",
+        noneMessage: "Aucune restriction appliquée : toutes les valeurs seront acceptées telles quelles.",
+        valueList: {
+          valuesLabel: "Valeurs autorisées",
+          valuesPlaceholder: "Saisissez une valeur par ligne",
+          valuesHint: "La liste sera convertie automatiquement en instruction VALUE= lors de la validation.",
         },
-        instructionModeHint:
-          "Choisissez de lister les valeurs depuis une feuille Excel ou de saisir directement l'instruction avancée.",
-        sheetLabel: "Feuille à utiliser",
-        sheetPlaceholder: "Sélectionnez un onglet",
-        sheetHint: "Le contrôle vérifiera les valeurs présentes dans la feuille choisie.",
-        sheetEmpty: "Importez un fichier pour lister les feuilles disponibles.",
-        customInstructionLabel: "Instruction AllowedValues",
-        customInstructionPlaceholder: "Ex: CODE=A;B;C ou PERIMETER=EMEA",
-        customInstructionHint: "Saisissez l'instruction exacte attendue par le moteur Python.",
+        sheetLookup: {
+          sheetLabel: "Feuille de référence",
+          sheetPlaceholder: "Sélectionnez un onglet",
+          sheetCustomPlaceholder: "Ou saisissez un nom d'onglet",
+          helper: "Génère l'instruction SHEET=NomFeuille pour vérifier les valeurs depuis cet onglet.",
+        },
+        customInstruction: {
+          instructionLabel: "Instruction avancée",
+          instructionPlaceholder: "Ex : SHEET=Pays ou VALUE=A;B;C",
+          helper: "Saisissez exactement l'instruction attendue par le service Python.",
+        },
       },
       guide: {
         title: "Mode d'emploi ValidationRules",
@@ -633,29 +648,43 @@ const translations = {
         ],
       },
       allowed: {
-        label: "Source of allowed values",
-        options: {
-          list: "Value list",
-          instruction: "Explicit instruction",
+        modeLabel: "AllowedValues rule type",
+        modeHelper: "Select how to express the allowed values for this column.",
+        modes: {
+          none: {
+            label: "No restriction",
+            description: "No AllowedValues instruction is sent, every value is accepted.",
+          },
+          valueList: {
+            label: "List of values",
+            description: "Type the allowed entries and we'll convert them to VALUE= for you.",
+          },
+          sheetLookup: {
+            label: "Lookup sheet (SHEET=)",
+            description: "Pick the workbook tab that contains the reference list.",
+          },
+          customInstruction: {
+            label: "Custom instruction",
+            description: "Provide the exact syntax expected by the Python validator.",
+          },
         },
-        valuesLabel: "Allowed values",
-        valuesPlaceholder: "Enter one value per line",
-        valuesHint:
-          "These values will be converted into a VALUE= instruction during validation.",
-        instructionModeLabel: "AllowedValues format",
-        instructionModeOptions: {
-          sheet: "Lookup sheet (SHEET=)",
-          custom: "Custom instruction",
+        noneMessage: "No AllowedValues instruction will be sent: every value is accepted as-is.",
+        valueList: {
+          valuesLabel: "Allowed values",
+          valuesPlaceholder: "One value per line",
+          valuesHint: "The list automatically becomes a VALUE= instruction during validation.",
         },
-        instructionModeHint:
-          "Choose whether to reuse an Excel sheet or to type the advanced instruction manually.",
-        sheetLabel: "Sheet to reference",
-        sheetPlaceholder: "Pick a sheet",
-        sheetHint: "The validation will check values against the selected sheet.",
-        sheetEmpty: "Import a file to populate the sheet list.",
-        customInstructionLabel: "AllowedValues instruction",
-        customInstructionPlaceholder: "Eg: CODE=A;B;C or FILTER=Active",
-        customInstructionHint: "Enter the exact instruction expected by the Python engine.",
+        sheetLookup: {
+          sheetLabel: "Reference sheet",
+          sheetPlaceholder: "Select a sheet",
+          sheetCustomPlaceholder: "Or type a sheet name",
+          helper: "Generates SHEET=SheetName so the validator reads values from that tab.",
+        },
+        customInstruction: {
+          instructionLabel: "Advanced instruction",
+          instructionPlaceholder: "Eg: SHEET=Country or VALUE=A;B;C",
+          helper: "Paste the instruction exactly as the Python validator expects it.",
+        },
       },
       guide: {
         title: "ValidationRules essentials",
