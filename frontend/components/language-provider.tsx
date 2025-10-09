@@ -222,8 +222,8 @@ const translations = {
       tipTitle: "Conseils d'utilisation",
       tips: [
         "Activez ou désactivez les contrôles comme dans la feuille Excel.",
-        "Basculer sur « Instruction » permet de référencer une feuille annexe avec SHEET=NomFeuille.",
-        "Ajoutez autant de valeurs autorisées que nécessaire en saisissant une valeur par ligne.",
+        "Choisissez « Feuille de référence » pour générer automatiquement la syntaxe SHEET=NomFeuille.",
+        "Sélectionnez « Instruction personnalisée » pour copier une syntaxe avancée déjà utilisée par Python.",
       ],
       emptyState: {
         description:
@@ -251,20 +251,90 @@ const translations = {
       customRule: {
         label: "Règle personnalisée",
         placeholder: "Nom de la fonction Python personnalisée",
+        helper:
+          "Utilisée pour les contrôles avancés (equals, unique, unique_per…). Copiez l'instruction telle qu'attendue par le script.",
+        patterns: [
+          {
+            id: "equals",
+            signature: "equals:TemplateField;ExpectedColumn",
+            description:
+              "Compare la valeur du champ Template avec une colonne de référence située dans une autre feuille.",
+            details:
+              "Le contrôle utilise la ligne où ExpectedColumn est renseignée pour déterminer la valeur attendue.",
+          },
+          {
+            id: "unique",
+            signature: "unique:FieldName",
+            description: "Vérifie que le champ est unique dans tout le fichier Template.",
+          },
+          {
+            id: "unique_per",
+            signature: "unique_per:FieldName",
+            description:
+              "Garantit l'unicité du champ par groupe défini par une autre colonne (ex: unique par Banque).",
+            details:
+              "Format attendu: unique_per:NomColonne. Exemple: unique_per:Bank account impose l'unicité du compte par banque.",
+          },
+        ],
       },
       allowed: {
         label: "Source des valeurs autorisées",
         options: {
           list: "Liste de valeurs",
-          instruction: "Instruction (VALUE=, SHEET=, etc.)",
+          instruction: "Instruction explicite",
         },
         valuesLabel: "Valeurs autorisées",
         valuesPlaceholder: "Saisissez une valeur par ligne",
         valuesHint: "Ces valeurs seront converties en instruction VALUE= lors de la validation.",
-        instructionLabel: "Instruction AllowedValues",
-        instructionPlaceholder: "Ex: SHEET=AnnuaireCodes ou VALUE=A;B;C",
-        instructionHint:
-          "Utilisez SHEET=NomFeuille pour charger une feuille annexe ou toute instruction personnalisée.",
+        instructionModeLabel: "Forme de la règle AllowedValues",
+        instructionModeOptions: {
+          sheet: "Feuille de référence (SHEET=)",
+          custom: "Instruction personnalisée",
+        },
+        instructionModeHint:
+          "Choisissez de lister les valeurs depuis une feuille Excel ou de saisir directement l'instruction avancée.",
+        sheetLabel: "Feuille à utiliser",
+        sheetPlaceholder: "Sélectionnez un onglet",
+        sheetHint: "Le contrôle vérifiera les valeurs présentes dans la feuille choisie.",
+        sheetEmpty: "Importez un fichier pour lister les feuilles disponibles.",
+        customInstructionLabel: "Instruction AllowedValues",
+        customInstructionPlaceholder: "Ex: CODE=A;B;C ou PERIMETER=EMEA",
+        customInstructionHint: "Saisissez l'instruction exacte attendue par le moteur Python.",
+      },
+      guide: {
+        title: "Mode d'emploi ValidationRules",
+        intro: "Ces rappels s'appliquent à tous les fichiers DMF partagés.",
+        columnsTitle: "Colonnes de la feuille",
+        columns: [
+          { name: "Field", description: "Nom de la colonne du Template à contrôler." },
+          { name: "Checked", description: "TRUE pour activer la validation de ce champ." },
+          { name: "Required", description: "TRUE si le champ ne doit jamais être vide." },
+          { name: "MinLength / MaxLength", description: "Bornes de longueur acceptées (laissez vide si non concerné)." },
+          {
+            name: "AllowedValues",
+            description: "Limite les valeurs autorisées (liste VALUE= ou feuille externe SHEET=).",
+          },
+          {
+            name: "CustomRule",
+            description: "Logique métier avancée (equals, unique, unique_per, etc.).",
+          },
+        ],
+        allowedTitle: "AllowedValues — options disponibles",
+        allowedItems: [
+          {
+            name: "VALUE=A;B;C",
+            description: "Liste exhaustive de valeurs permises, séparées par des points-virgules.",
+          },
+          {
+            name: "SHEET=NomFeuille",
+            description: "Recherche toutes les valeurs de la feuille indiquée pour autoriser la saisie.",
+          },
+          {
+            name: "Instruction avancée",
+            description: "Toute autre syntaxe acceptée par le moteur Python (ex: LIST=, FILTER=…).",
+          },
+        ],
+        customRulesTitle: "CustomRule — cas les plus fréquents",
       },
       detailWarning:
         "Complétez les informations de chaque règle avant de lancer la validation.",
@@ -507,8 +577,8 @@ const translations = {
       tipTitle: "Usage tips",
       tips: [
         "Enable or disable controls just like in the Excel sheet.",
-        "Switching to \"Instruction\" lets you reference another sheet with SHEET=SheetName.",
-        "Add as many allowed values as needed by entering one value per line.",
+        "Pick \"Lookup sheet\" to generate the SHEET= syntax automatically.",
+        "Use \"Custom instruction\" to paste any advanced syntax already supported by Python.",
       ],
       emptyState: {
         description:
@@ -536,22 +606,91 @@ const translations = {
       customRule: {
         label: "Custom rule",
         placeholder: "Name of the custom Python function",
+        helper:
+          "Used for advanced controls (equals, unique, unique_per, …). Paste the exact instruction expected by the script.",
+        patterns: [
+          {
+            id: "equals",
+            signature: "equals:TemplateField;ExpectedColumn",
+            description:
+              "Cross-checks the Template field against a reference column located in another sheet.",
+            details:
+              "The row where ExpectedColumn is filled provides the expected value for the comparison.",
+          },
+          {
+            id: "unique",
+            signature: "unique:FieldName",
+            description: "Ensures the field is unique across the entire Template sheet.",
+          },
+          {
+            id: "unique_per",
+            signature: "unique_per:FieldName",
+            description:
+              "Keeps the field unique within each group defined by another column (e.g. per Bank).",
+            details:
+              "Expected format: unique_per:ColumnName. Example: unique_per:Bank account enforces one account per bank.",
+          },
+        ],
       },
       allowed: {
         label: "Source of allowed values",
         options: {
           list: "Value list",
-          instruction: "Instruction (VALUE=, SHEET=, etc.)",
+          instruction: "Explicit instruction",
         },
         valuesLabel: "Allowed values",
         valuesPlaceholder: "Enter one value per line",
         valuesHint:
           "These values will be converted into a VALUE= instruction during validation.",
-        instructionLabel: "AllowedValues instruction",
-        instructionPlaceholder:
-          "e.g. SHEET=CodeDirectory or VALUE=A;B;C",
-        instructionHint:
-          "Use SHEET=SheetName to load an auxiliary sheet or any custom instruction.",
+        instructionModeLabel: "AllowedValues format",
+        instructionModeOptions: {
+          sheet: "Lookup sheet (SHEET=)",
+          custom: "Custom instruction",
+        },
+        instructionModeHint:
+          "Choose whether to reuse an Excel sheet or to type the advanced instruction manually.",
+        sheetLabel: "Sheet to reference",
+        sheetPlaceholder: "Pick a sheet",
+        sheetHint: "The validation will check values against the selected sheet.",
+        sheetEmpty: "Import a file to populate the sheet list.",
+        customInstructionLabel: "AllowedValues instruction",
+        customInstructionPlaceholder: "Eg: CODE=A;B;C or FILTER=Active",
+        customInstructionHint: "Enter the exact instruction expected by the Python engine.",
+      },
+      guide: {
+        title: "ValidationRules essentials",
+        intro: "Share these principles with every DMF contributor.",
+        columnsTitle: "Sheet columns",
+        columns: [
+          { name: "Field", description: "Template column to validate." },
+          { name: "Checked", description: "TRUE to enable the validation for this field." },
+          { name: "Required", description: "TRUE when the field must never be empty." },
+          { name: "MinLength / MaxLength", description: "Length constraints (leave blank if not enforced)." },
+          {
+            name: "AllowedValues",
+            description: "Restrict allowed values (VALUE= list or external sheet with SHEET=).",
+          },
+          {
+            name: "CustomRule",
+            description: "Advanced logic handled by Python (equals, unique, unique_per, etc.).",
+          },
+        ],
+        allowedTitle: "AllowedValues options",
+        allowedItems: [
+          {
+            name: "VALUE=A;B;C",
+            description: "Exhaustive list of allowed values separated by semicolons.",
+          },
+          {
+            name: "SHEET=SheetName",
+            description: "Lookup every value present in the referenced sheet.",
+          },
+          {
+            name: "Advanced instruction",
+            description: "Any other syntax supported by the Python engine (e.g. LIST=, FILTER=…).",
+          },
+        ],
+        customRulesTitle: "CustomRule highlights",
       },
       detailWarning: "Complete every rule before launching the validation.",
       launchWarning: "Provide a field name for each rule before starting the validation.",
