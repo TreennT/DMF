@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
@@ -26,6 +26,7 @@ type MappingRuleRow = {
   type: MappingRuleType;
   sourceColumn?: string;
   mappingSheet?: string;
+  mappingColumn?: string;
   fixedValue?: string;
   sequencePattern?: string;
   concatExpression?: string;
@@ -101,7 +102,7 @@ function createRuleConfig(type: MappingRuleType): ParsedInstruction {
     case "INVARIABLE":
       return { ...base, fixedValue: "" };
     case "MAPPING":
-      return { ...base, sourceColumn: "", mappingSheet: "" };
+      return { ...base, sourceColumn: "", mappingSheet: "", mappingColumn: undefined };
     case "NS":
       return { ...base, sequencePattern: "" };
     case "CONCAT":
@@ -271,7 +272,7 @@ function parseParametersSheet(sheet: XLSX.WorkSheet): MappingRuleRow[] {
     const isHeaderRow =
       index === 0 &&
       ["target", "champ", "colonne"].includes(target.toLowerCase()) &&
-      ["rule", "instruction", "règle"].includes(instruction.toLowerCase());
+      ["rule", "instruction", "rÃ¨gle"].includes(instruction.toLowerCase());
 
     if (isHeaderRow) {
       return acc;
@@ -321,6 +322,8 @@ export default function MappingPage() {
   const [rulesOpen, setRulesOpen] = useState<boolean>(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [templateColumns, setTemplateColumns] = useState<string[]>([]);
+  const [availableSheets, setAvailableSheets] = useState<string[]>([]);
+  const [sheetColumns, setSheetColumns] = useState<Record<string, string[]>>({});
 
   const { content } = useLanguage();
   const { mapping, common } = content;
@@ -454,16 +457,29 @@ export default function MappingPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {mapping.rules.fields.mapping.sheetLabel}
-                </label>
-                <input
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{mapping.rules.fields.mapping.sheetLabel}</label>
+                <select
                   value={rule.mappingSheet ?? ""}
-                  onChange={(event) => updateRule(rule.id, { mappingSheet: event.target.value })}
-                  placeholder={mapping.rules.fields.mapping.sheetPlaceholder}
-                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                />
-              </div>
+                  onChange={(event) => updateRule(rule.id, { mappingSheet: event.target.value || undefined, mappingColumn: undefined })}
+                  className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                >
+                  <option value="">{mapping.rules.fields.mapping.sheetPlaceholder}</option>
+                  {availableSheets.map((name) => (
+                    <option key={`map-${name}`} value={name}>{name}</option>
+                  ))}
+                </select>
+                <div className="mt-3">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{(mapping.rules.fields as any).mapping?.columnLabel ?? "Sheet column"}</label>
+                  <select
+                    value={rule.mappingColumn ?? ""}
+                    onChange={(event) => updateRule(rule.id, { mappingColumn: event.target.value || undefined })}
+                    disabled={!rule.mappingSheet}
+                    className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm disabled:opacity-60 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  >
+                    <option value="" disabled>{(mapping.rules.fields as any).mapping?.columnPlaceholder ?? "Select a column"}</option>
+                    {(() => { const cols = rule.mappingSheet ? (sheetColumns[rule.mappingSheet] || []) : []; return cols.map((col) => (<option key={`col-${col}`} value={col}>{col}</option>)); })()}
+                  </select>
+                </div>
             </div>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {mapping.rules.fields.mapping.helper}
@@ -563,6 +579,27 @@ export default function MappingPage() {
       const templateSheet = workbook.Sheets["Template"];
       const cols = extractTemplateFields(templateSheet);
       setTemplateColumns(cols);
+      if (Array.isArray((workbook as any).SheetNames)) {
+        setAvailableSheets((workbook as any).SheetNames as string[]);
+      } else {
+        setAvailableSheets([]);
+      }
+      try {
+        const names = (workbook as any).SheetNames as string[];
+        const columns: Record<string, string[]> = {};
+        for (const name of names) {
+          const ws: XLSX.WorkSheet | undefined = (workbook.Sheets as any)[name];
+          if (!ws) continue;
+          const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, blankrows: false });
+          if (rows.length === 0) continue;
+          const headerRow = rows.find((row) => row.some((cell) => (cell === undefined || cell === null ? false : String(cell).trim().length > 0))) ?? [];
+          const headers = headerRow.map((cell) => (cell === undefined || cell === null ? "" : String(cell).trim())).filter((v) => v.length > 0);
+          if (headers.length > 0) { columns[name] = headers; }
+        }
+        setSheetColumns(columns);
+      } catch {
+        setSheetColumns({});
+      }
 
       if (parametersSheet) {
         const parsedRules = parseParametersSheet(parametersSheet);
@@ -641,7 +678,7 @@ export default function MappingPage() {
             href="/"
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            <span aria-hidden>←</span>
+            <span aria-hidden>â†</span>
             {common.backToHome}
           </Link>
         </div>
@@ -665,7 +702,7 @@ export default function MappingPage() {
                 <div className="space-y-2">
                   <p className="text-base font-medium text-slate-800 dark:text-slate-100">{file.name}</p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {formatFileSize(file.size)} · {file.type || mapping.hero.unknownType}
+                    {formatFileSize(file.size)} Â· {file.type || mapping.hero.unknownType}
                   </p>
                 </div>
               ) : (
@@ -718,7 +755,7 @@ export default function MappingPage() {
                         aria-hidden
                         className="text-base transition-transform duration-200 group-open:rotate-180"
                       >
-                        ▾
+                        â–¾
                       </span>
                     </span>
                   </summary>
@@ -880,7 +917,7 @@ export default function MappingPage() {
             {mapping.tips.items.map((tip) => (
               <li key={tip} className="flex items-start gap-3">
                 <span className="mt-1 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200">
-                  ✓
+                  âœ“
                 </span>
                 <span>{tip}</span>
               </li>
@@ -919,3 +956,11 @@ export default function MappingPage() {
     </main>
   );
 }
+
+
+
+
+
+
+
+
