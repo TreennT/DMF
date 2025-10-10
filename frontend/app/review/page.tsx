@@ -604,6 +604,7 @@ export default function HomePage() {
     status.type === "validationError" ||
     status.type === "validationFailed" ||
     status.type === "networkError" ||
+    status.type === "readError";
 
 
   return (
