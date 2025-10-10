@@ -819,18 +819,19 @@ export default function HomePage() {
                                         {rulesText.allowed.label}
                                       </label>
                                       <select
-                                        value={rule.allowedType}
+                                        value={(rule as any).allowedMode ?? (rule.allowedType === 'list' ? 'list' : (rule.allowedInstructionMode === 'sheet' ? 'sheet' : 'any'))}
                                         onChange={(event) =>
-                                          updateRule(rule.id, { allowedType: event.target.value as AllowedType })
+                                          updateRule(rule.id, { allowedMode: event.target.value as any })
                                         }
                                         className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                                       >
+                                        <option value="any">{(rulesText.allowed as any).options?.any ?? "Toutes valeurs"}</option>
+                                        <option value="sheet">{(rulesText.allowed as any).options?.sheet ?? "Feuille"}</option>
                                         <option value="list">{rulesText.allowed.options.list}</option>
-                                        <option value="instruction">{rulesText.allowed.options.instruction}</option>
                                       </select>
                                     </div>
 
-                                    {rule.allowedType === "list" ? (
+                                    {(((rule as any).allowedMode ?? (rule.allowedType === 'list' ? 'list' : (rule.allowedInstructionMode === 'sheet' ? 'sheet' : 'any'))) === "list") ? (
                                       <div>
                                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                           {rulesText.allowed.valuesLabel}
@@ -864,7 +865,7 @@ export default function HomePage() {
                                       </div>
                                     ) : (
                                       <div className="space-y-3">
-                                        <div>
+                                        <div className="hidden">
                                           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                             {(rulesText.allowed as any).modeLabel ?? "Mode"}
                                           </label>
@@ -932,7 +933,7 @@ export default function HomePage() {
                                             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{(rulesText.allowed as any).sheetHint ?? "Indiquez le nom exact de la feuille de référence."}</p>
                                           </div>
                                         ) : (
-                                          <div>
+                                          <div className="hidden">
                                             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                               {rulesText.allowed.instructionLabel}
                                             </label>
