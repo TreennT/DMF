@@ -745,6 +745,7 @@ export default function HomePage() {
                                   </div>
 
                                   <div className="grid gap-3 sm:grid-cols-2">
+                                  <details className="mt-4"><summary className="cursor-pointer text-sm font-semibold"> ${rulesText.customRule.label}</summary>
                                     <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
                                       <input
                                         type="checkbox"
@@ -813,7 +814,9 @@ export default function HomePage() {
                                     />
                                   </div>
 
+                                  <details className="mt-4" open={false}><summary className="cursor-pointer text-sm font-semibold">{(rulesText as any).sections?.allowedTitle ?? ((rulesText.allowed as any).valuesLabel ?? "Allowed values")}</summary>
                                   <div className="space-y-4">
+                                  </details>
                                     <div>
                                       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                         {rulesText.allowed.label}
@@ -1048,4 +1051,5 @@ export default function HomePage() {
     </main>
   );
 }
+
 
