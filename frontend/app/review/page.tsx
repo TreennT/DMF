@@ -813,9 +813,10 @@ export default function HomePage() {
                                       placeholder={rulesText.customRule.placeholder}
                                     />
                                   </div>
+                                  </details>
 
                                   <details className="mt-4" open={false}><summary className="cursor-pointer text-sm font-semibold">{(rulesText as any).sections?.allowedTitle ?? ((rulesText.allowed as any).valuesLabel ?? "Allowed values")}</summary>
-                                  <div className="space-y-4">
+                                  <div className="mt-3 space-y-4">
                                   <div>
                                       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                         {rulesText.allowed.label}
