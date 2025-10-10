@@ -634,7 +634,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <p className="text-base font-medium text-slate-800 dark:text-slate-100">{file.name}</p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {formatFileSize(file.size)} · {file.type || hero.unknownType}
+                    {formatFileSize(file.size) - {file.type || hero.unknownType}
                   </p>
                 </div>
               ) : (
@@ -1052,6 +1052,7 @@ export default function HomePage() {
     </main>
   );
 }
+
 
 
 
