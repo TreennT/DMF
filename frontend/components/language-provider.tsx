@@ -192,7 +192,7 @@ const translations = {
 
         removeButton: "Supprimer",
 
-        ruleLabel: (index: number) => Ã¨gle ${index}`,
+        ruleLabel: (index: number) => `Regle ${index}`,
 
         targetLabel: "Colonne cible",
 
