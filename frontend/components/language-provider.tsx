@@ -191,6 +191,13 @@ const translations = {
         addButton: "Ajouter une rÃ¨gle",
 
         removeButton: "Supprimer",
+        sections: {
+
+          allowedTitle: "Valeurs autorisees",
+
+          advancedTitle: "Regles personnalisees",
+
+        },
 
         ruleLabel: (index: number) => `Regle ${index}`,
 
@@ -760,6 +767,13 @@ const translations = {
         addButton: "Add a rule",
 
         removeButton: "Delete",
+        sections: {
+
+          allowedTitle: "Valeurs autorisees",
+
+          advancedTitle: "Regles personnalisees",
+
+        },
 
         ruleLabel: (index: number) => `Rule ${index}`,
 
