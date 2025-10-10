@@ -10,6 +10,8 @@ import type { Translation } from "../../components/language-provider";
 const truthyValues = new Set(["true", "1", "yes", "oui", "y", "x"]);
 
 type AllowedType = "list" | "instruction";
+type AllowedInstructionMode = "sheet" | "custom";
+type AllowedMode = "any" | "list" | "sheet";
 
 function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -28,9 +30,13 @@ type RuleRow = {
   required: boolean;
   minLength?: number;
   maxLength?: number;
+  allowedMode: AllowedMode;
   allowedType: AllowedType;
   allowedValues: string[];
   allowedInstruction: string;
+  allowedInstructionMode: AllowedInstructionMode;
+  allowedSheet?: string;
+  allowedColumn?: string;
   pattern?: string;
   customRule?: string;
 };
@@ -44,6 +50,9 @@ type RulePayload = {
   allowedType: AllowedType;
   allowedValues: string[];
   allowedInstruction: string;
+  allowedInstructionMode: "sheet" | "custom";
+  allowedSheet?: string;
+  allowedColumn?: string;
   pattern: string;
   customRule: string;
 };
@@ -170,19 +179,44 @@ function mapRowsToRules(jsonRows: Record<string, unknown>[]): RuleRow[] {
     const allowedRaw = typeof allowedValue === "string" ? allowedValue.trim() : "";
     let allowedValues: string[] = [];
     let allowedInstruction = "";
+    let allowedInstructionMode: AllowedInstructionMode = "custom";
+    let allowedSheet: string | undefined = undefined;
+    let allowedColumn: string | undefined = undefined;
+    let allowedMode: AllowedMode = "any";
     if (allowedRaw) {
-      if (allowedRaw.toUpperCase().startsWith("VALUE=")) {
+      const upper = allowedRaw.toUpperCase();
+      if (upper.startsWith("VALUE=")) {
         allowedValues = allowedRaw
           .slice(6)
           .split(";")
           .map((entry) => entry.trim())
           .filter((entry) => entry.length > 0);
+        allowedMode = "list";
+      } else if (upper.startsWith("SHEET=")) {
+        allowedInstructionMode = "sheet";
+        const sheetPart = allowedRaw.slice(6).trim();
+        if (sheetPart.includes("!")) {
+          const [sName, cName] = sheetPart.split("!", 2);
+          allowedSheet = (sName || "").trim() || undefined;
+          allowedColumn = (cName || "").trim() || undefined;
+        } else {
+          const parts = sheetPart.split(";").map((p) => p.trim()).filter(Boolean);
+          allowedSheet = (parts[0] || "").trim() || undefined;
+          for (const token of parts.slice(1)) {
+            if (token.toUpperCase().startsWith("COLUMN=") || token.toUpperCase().startsWith("COL=")) {
+              allowedColumn = token.split("=", 1)[1].trim() || undefined;
+            }
+          }
+        }
+        allowedMode = "sheet";
       } else {
+        allowedInstructionMode = "custom";
         allowedInstruction = allowedRaw;
+        allowedMode = "any";
       }
     }
 
-    const allowedType: AllowedType = allowedValues.length > 0 ? "list" : "instruction";
+    const allowedType: AllowedType = allowedMode === "list" ? "list" : "instruction";
 
     const pattern = row["Pattern"] ? String(row["Pattern"]).trim() : "";
     const customRule = row["CustomRule"] ? String(row["CustomRule"]).trim() : "";
@@ -194,9 +228,13 @@ function mapRowsToRules(jsonRows: Record<string, unknown>[]): RuleRow[] {
       required: toBoolean(row["Required"]),
       minLength: toNumber(row["MinLength"]),
       maxLength: toNumber(row["MaxLength"]),
+      allowedMode,
       allowedType,
       allowedValues,
       allowedInstruction: allowedType === "instruction" ? allowedInstruction : "",
+      allowedInstructionMode,
+      allowedSheet,
+      allowedColumn,
       pattern: pattern || undefined,
       customRule: customRule || undefined,
     });
@@ -207,7 +245,7 @@ function mapRowsToRules(jsonRows: Record<string, unknown>[]): RuleRow[] {
 
 function serializeRulesForBackend(rules: RuleRow[]): RulePayload[] {
   return rules
-    .map((rule) => {
+    .map<RulePayload | null>((rule) => {
       const field = rule.field.trim();
       if (!field) {
         return null;
@@ -217,18 +255,36 @@ function serializeRulesForBackend(rules: RuleRow[]): RulePayload[] {
           ? rule.allowedValues.map((value) => value.trim()).filter((value) => value.length > 0)
           : [];
 
+      const allowedType: AllowedType = rule.allowedType;
+      const allowedInstructionMode: AllowedInstructionMode = rule.allowedType === "instruction" ? rule.allowedInstructionMode : "custom";
+      const allowedInstruction: string =
+        rule.allowedType === "instruction" && (rule.allowedInstructionMode ?? "custom") === "custom"
+          ? rule.allowedInstruction.trim()
+          : "";
+      const allowedSheet: string | undefined =
+        rule.allowedType === "instruction" && (rule.allowedInstructionMode ?? "custom") === "sheet"
+          ? (rule.allowedSheet?.trim() || undefined)
+          : undefined;
+      const allowedColumn: string | undefined =
+        rule.allowedType === "instruction" && (rule.allowedInstructionMode ?? "custom") === "sheet"
+          ? (rule.allowedColumn?.trim() || undefined)
+          : undefined;
+
       return {
         field,
         checked: rule.checked,
         required: rule.required,
         minLength: rule.minLength ?? null,
         maxLength: rule.maxLength ?? null,
-        allowedType: rule.allowedType,
+        allowedType,
         allowedValues,
-        allowedInstruction: rule.allowedType === "instruction" ? rule.allowedInstruction.trim() : "",
+        allowedInstruction,
+        allowedInstructionMode,
+        allowedSheet,
+        allowedColumn,
         pattern: rule.pattern?.trim() ?? "",
         customRule: rule.customRule?.trim() ?? "",
-      } satisfies RulePayload;
+      } as RulePayload;
     })
     .filter((value): value is RulePayload => value !== null);
 }
@@ -241,9 +297,13 @@ function createRuleFromField(field: string): RuleRow {
     required: false,
     minLength: undefined,
     maxLength: undefined,
-    allowedType: "list",
+    allowedMode: "any",
+    allowedType: "instruction",
     allowedValues: [],
     allowedInstruction: "",
+    allowedInstructionMode: "custom",
+    allowedSheet: undefined,
+    allowedColumn: undefined,
     pattern: undefined,
     customRule: undefined,
   };
@@ -290,12 +350,22 @@ export default function HomePage() {
   const [rulesEdited, setRulesEdited] = useState<boolean>(false);
   const [rulesOpen, setRulesOpen] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [availableSheets, setAvailableSheets] = useState<string[]>([]);
+  const [sheetColumns, setSheetColumns] = useState<Record<string, string[]>>({});
 
   const statusMessage = resolveStatusMessage(status, statuses);
 
   const hasMissingField = useMemo(() => rules.some((rule) => !rule.field.trim()), [rules]);
   const hasDetailIssue = useMemo(
-    () => rules.some((rule) => rule.allowedType === "instruction" && !rule.allowedInstruction.trim()),
+    () =>
+      rules.some((rule) => {
+        if (rule.allowedType !== "instruction") return false;
+        const mode = rule.allowedInstructionMode ?? "custom";
+        if (mode === "sheet") {
+          return !((rule.allowedSheet && rule.allowedSheet.trim()) && (rule.allowedColumn && rule.allowedColumn.trim()));
+        }
+        return !rule.allowedInstruction.trim();
+      }),
     [rules],
   );
 
@@ -328,18 +398,47 @@ export default function HomePage() {
       prev.map((rule) => {
         if (rule.id !== id) return rule;
         const next: RuleRow = { ...rule, ...updates };
+        if (updates.allowedMode) {
+          if (updates.allowedMode === "any") {
+            next.allowedValues = [];
+            next.allowedSheet = undefined;
+            next.allowedColumn = undefined;
+            next.allowedType = "instruction";
+            next.allowedInstructionMode = "custom";
+            next.allowedInstruction = "";
+          } else if (updates.allowedMode === "list") {
+            next.allowedValues = [];
+            next.allowedSheet = undefined;
+            next.allowedColumn = undefined;
+            next.allowedType = "list";
+            next.allowedInstructionMode = "custom";
+            next.allowedInstruction = "";
+          } else if (updates.allowedMode === "sheet") {
+            next.allowedValues = [];
+            next.allowedSheet = undefined;
+            next.allowedColumn = undefined;
+            next.allowedType = "instruction";
+            next.allowedInstructionMode = "sheet";
+            next.allowedInstruction = "";
+          }
+        }
         if (updates.allowedType) {
           if (updates.allowedType === "list") {
             next.allowedInstruction = "";
+            next.allowedInstructionMode = "custom";
+            next.allowedSheet = undefined;
+            next.allowedColumn = undefined;
           } else {
             next.allowedValues = [];
           }
         }
-        if (next.allowedType === "list" && updates.allowedInstruction !== undefined) {
-          next.allowedInstruction = "";
-        }
-        if (next.allowedType === "instruction" && updates.allowedValues !== undefined) {
-          next.allowedValues = [];
+        if (updates.allowedInstructionMode) {
+          if (updates.allowedInstructionMode === "sheet") {
+            next.allowedInstruction = "";
+          } else {
+            next.allowedSheet = undefined;
+            next.allowedColumn = undefined;
+          }
         }
         return next;
       }),
@@ -376,6 +475,35 @@ export default function HomePage() {
       const workbook = XLSX.read(data);
       const validationSheet = workbook.Sheets["ValidationRules"];
       const templateSheet = workbook.Sheets["Template"];
+
+      if (Array.isArray((workbook as any).SheetNames)) {
+        setAvailableSheets((workbook as any).SheetNames as string[]);
+      } else {
+        setAvailableSheets([]);
+      }
+
+      // Build map of columns for each sheet
+      try {
+        const names = (workbook as any).SheetNames as string[];
+        const columns: Record<string, string[]> = {};
+        for (const name of names) {
+          const ws: XLSX.WorkSheet | undefined = (workbook.Sheets as any)[name];
+          if (!ws) continue;
+          const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, blankrows: false });
+          if (rows.length === 0) continue;
+          const headerRow =
+            rows.find((row) => row.some((cell) => (cell === undefined || cell === null ? false : String(cell).trim().length > 0))) ?? [];
+          const headers = headerRow
+            .map((cell) => (cell === undefined || cell === null ? "" : String(cell).trim()))
+            .filter((v) => v.length > 0);
+          if (headers.length > 0) {
+            columns[name] = headers;
+          }
+        }
+        setSheetColumns(columns);
+      } catch {
+        setSheetColumns({});
+      }
 
       const mappedRules = validationSheet
         ? mapRowsToRules(
@@ -579,7 +707,10 @@ export default function HomePage() {
                         {rules.map((rule, index) => {
                           const fieldIsEmpty = rule.field.trim().length === 0;
                           const instructionEmpty =
-                            rule.allowedType === "instruction" && rule.allowedInstruction.trim().length === 0;
+                            rule.allowedType === "instruction" &&
+                            ((rule.allowedInstructionMode ?? "custom") === "sheet"
+                              ? !(rule.allowedSheet && rule.allowedSheet.trim())
+                              : rule.allowedInstruction.trim().length === 0);
 
                           return (
                             <div
@@ -665,18 +796,7 @@ export default function HomePage() {
                                     </div>
                                   </div>
 
-                                  <div>
-                                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                      {rulesText.pattern.label}
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={rule.pattern ?? ""}
-                                      onChange={(event) => updateRule(rule.id, { pattern: event.target.value || undefined })}
-                                      className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                                      placeholder={rulesText.pattern.placeholder}
-                                    />
-                                  </div>
+                                  {null}
 
                                   <div>
                                     <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -743,21 +863,92 @@ export default function HomePage() {
                                         ) : null}
                                       </div>
                                     ) : (
-                                      <div>
-                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                          {rulesText.allowed.instructionLabel}
-                                        </label>
-                                        <textarea
-                                          value={rule.allowedInstruction}
-                                          onChange={(event) => updateRule(rule.id, { allowedInstruction: event.target.value })}
-                                          className={`mt-2 h-28 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${
-                                            instructionEmpty
-                                              ? "border-red-300 focus:border-red-400 dark:border-red-700"
-                                              : "border-slate-200 focus:border-emerald-400"
-                                          }`}
-                                          placeholder={rulesText.allowed.instructionPlaceholder}
-                                        />
-                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.instructionHint}</p>
+                                      <div className="space-y-3">
+                                        <div>
+                                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                            {(rulesText.allowed as any).modeLabel ?? "Mode"}
+                                          </label>
+                                          <select
+                                            value={rule.allowedInstructionMode}
+                                            onChange={(event) =>
+                                              updateRule(rule.id, { allowedInstructionMode: event.target.value as any })
+                                            }
+                                            className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                                          >
+                                            <option value="sheet">{(rulesText.allowed as any).modeOptions?.sheet ?? "Feuille"}</option>
+                                            <option value="custom">{(rulesText.allowed as any).modeOptions?.custom ?? "Personnalisée"}</option>
+                                          </select>
+                                        </div>
+
+                                        {rule.allowedInstructionMode === "sheet" ? (
+                                          <div>
+                                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                              {(rulesText.allowed as any).sheetLabel ?? "Nom de la feuille"}
+                                            </label>
+                                            <select
+                                              value={rule.allowedSheet ?? ""}
+                                              onChange={(event) =>
+                                                updateRule(rule.id, { allowedSheet: event.target.value || undefined })
+                                              }
+                                              className={`mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100`}
+                                            >
+                                              <option value="" disabled>
+                                                {(rulesText.allowed as any).sheetPlaceholder ?? "Ex: AnnuaireCodes"}
+                                              </option>
+                                              {(() => {
+                                                const options = (rule.allowedSheet && !availableSheets.includes(rule.allowedSheet))
+                                                  ? [rule.allowedSheet, ...availableSheets]
+                                                  : availableSheets;
+                                                return options.map((name) => (
+                                                  <option key={`${rule.id}-sheet-${name}`} value={name}>
+                                                    {name}
+                                                  </option>
+                                                ));
+                                              })()}
+                                            </select>
+                                            <div className="mt-3">
+                                              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                                {(rulesText.allowed as any).columnLabel ?? "Colonne de la feuille"}
+                                              </label>
+                                              <select
+                                                value={rule.allowedColumn ?? ""}
+                                                onChange={(event) => updateRule(rule.id, { allowedColumn: event.target.value || undefined })}
+                                                className={`mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100`}
+                                              >
+                                                <option value="" disabled>
+                                                  {(rulesText.allowed as any).columnPlaceholder ?? "Ex: Code"}
+                                                </option>
+                                                {(() => {
+                                                  const cols = rule.allowedSheet ? (sheetColumns[rule.allowedSheet] || []) : [];
+                                                  const options = (rule.allowedColumn && !cols.includes(rule.allowedColumn)) ? [rule.allowedColumn, ...cols] : cols;
+                                                  return options.map((name) => (
+                                                    <option key={`${rule.id}-col-${name}`} value={name}>
+                                                      {name}
+                                                    </option>
+                                                  ));
+                                                })()}
+                                              </select>
+                                            </div>
+                                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{(rulesText.allowed as any).sheetHint ?? "Indiquez le nom exact de la feuille de référence."}</p>
+                                          </div>
+                                        ) : (
+                                          <div>
+                                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                              {rulesText.allowed.instructionLabel}
+                                            </label>
+                                            <textarea
+                                              value={rule.allowedInstruction}
+                                              onChange={(event) => updateRule(rule.id, { allowedInstruction: event.target.value })}
+                                              className={`mt-2 h-28 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${
+                                                instructionEmpty
+                                                  ? "border-red-300 focus:border-red-400 dark:border-red-700"
+                                                  : "border-slate-200 focus:border-emerald-400"
+                                              }`}
+                                              placeholder={rulesText.allowed.instructionPlaceholder}
+                                            />
+                                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.instructionHint}</p>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>

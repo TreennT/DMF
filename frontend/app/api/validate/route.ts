@@ -28,6 +28,9 @@ type RulePayload = {
   allowedType: AllowedType;
   allowedValues: string[];
   allowedInstruction: string;
+  allowedInstructionMode: "sheet" | "custom";
+  allowedSheet?: string;
+  allowedColumn?: string;
   pattern: string;
   customRule: string;
 };
@@ -133,7 +136,7 @@ function sanitizeRules(input: unknown): RulePayload[] {
   }
 
   return input
-    .map((entry) => {
+    .map<RulePayload | null>((entry) => {
       if (!entry || typeof entry !== "object") {
         return null;
       }
@@ -151,8 +154,18 @@ function sanitizeRules(input: unknown): RulePayload[] {
               .map((value) => (typeof value === "string" ? value.trim() : ""))
               .filter((value) => value.length > 0)
           : [];
+      const allowedInstructionMode: "sheet" | "custom" =
+        allowedType === "instruction" && raw.allowedInstructionMode === "sheet" ? "sheet" : "custom";
+      const allowedSheet =
+        allowedType === "instruction" && allowedInstructionMode === "sheet" && typeof raw.allowedSheet === "string"
+          ? raw.allowedSheet.trim() || undefined
+          : undefined;
+      const allowedColumn =
+        allowedType === "instruction" && allowedInstructionMode === "sheet" && typeof (raw as any).allowedColumn === "string"
+          ? (raw as any).allowedColumn.trim() || undefined
+          : undefined;
       const allowedInstruction =
-        allowedType === "instruction" && typeof raw.allowedInstruction === "string"
+        allowedType === "instruction" && allowedInstructionMode === "custom" && typeof raw.allowedInstruction === "string"
           ? raw.allowedInstruction.trim()
           : "";
 
@@ -165,9 +178,12 @@ function sanitizeRules(input: unknown): RulePayload[] {
         allowedType,
         allowedValues,
         allowedInstruction,
+        allowedInstructionMode,
+        allowedSheet,
+        allowedColumn,
         pattern: typeof raw.pattern === "string" ? raw.pattern.trim() : "",
         customRule: typeof raw.customRule === "string" ? raw.customRule.trim() : "",
-      } satisfies RulePayload;
+      } as RulePayload;
     })
     .filter((value): value is RulePayload => value !== null);
 }

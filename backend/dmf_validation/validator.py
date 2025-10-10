@@ -160,7 +160,31 @@ def load_validation_rules(input_file: str, override: Optional[pd.DataFrame] = No
 
             elif allowed_source.upper().startswith("SHEET="):
 
-                sheet_name = allowed_source[len("SHEET=") :].strip()
+                # Parse formats:
+                #   SHEET=MySheet
+                #   SHEET=MySheet;COLUMN=MyColumn
+                #   SHEET=MySheet!MyColumn
+                sheet_part = allowed_source[len("SHEET=") :].strip()
+
+                column_name: Optional[str] = None
+
+                # Support bang syntax SHEET=Sheet!Column
+                if "!" in sheet_part:
+                    sheet_name, after = sheet_part.split("!", 1)
+                    sheet_name = sheet_name.strip()
+                    column_name = after.strip() or None
+                else:
+                    # Support key/value pairs SHEET=Sheet;COLUMN=Col
+                    parts = [p.strip() for p in sheet_part.split(";") if p and p.strip()]
+                    # First token is the sheet name by default
+                    sheet_name = parts[0] if parts else ""
+                    # Look for COLUMN=... among the remaining parts
+                    for token in parts[1:]:
+                        if token.upper().startswith("COLUMN=") or token.upper().startswith("COL="):
+                            column_name = token.split("=", 1)[1].strip() or None
+
+                if not sheet_name:
+                    raise ValueError("Instruction SHEET= invalide: nom de feuille manquant")
 
                 ref_df = reference_cache.get(sheet_name)
 
@@ -170,43 +194,45 @@ def load_validation_rules(input_file: str, override: Optional[pd.DataFrame] = No
 
                     reference_cache[sheet_name] = ref_df
 
-
-
-                matching_cols = [
-
-                    col for col in ref_df.columns if normalize(col) == normalize(sheet_name)
-
-                ]
-
-                if len(matching_cols) == 1:
-
-                    column = matching_cols[0]
-
-                    allowed_values = {
-
-                        str(val).strip().upper()
-
-                        for val in ref_df[column].dropna().tolist()
-
-                        if str(val).strip()
-
-                    }
-
-                elif len(matching_cols) == 0:
-
-                    raise ValueError(
-
-                        f"Aucune colonne nommee '{sheet_name}' dans la feuille '{sheet_name}'."
-
-                    )
-
+                # Resolve the column to use
+                resolved_column: Optional[str] = None
+                if column_name:
+                    # Find exact (case-insensitive, trimmed) match
+                    for col in ref_df.columns:
+                        if normalize(col) == normalize(column_name):
+                            resolved_column = col
+                            break
+                    if resolved_column is None:
+                        raise ValueError(
+                            f"Colonne '{column_name}' introuvable dans la feuille '{sheet_name}'."
+                        )
                 else:
+                    # Backward-compatible heuristic: try to match the current field name
+                    # If not found, fall back to the first non-empty column
+                    matching_cols = [col for col in ref_df.columns if normalize(col) == normalize(field)]
+                    if len(matching_cols) == 1:
+                        resolved_column = matching_cols[0]
+                    elif len(matching_cols) > 1:
+                        raise ValueError(
+                            f"Plusieurs colonnes compatibles avec le champ '{field}' dans la feuille '{sheet_name}'. Precisez COLUMN=."
+                        )
+                    else:
+                        # Fallback: first column with at least one non-empty value
+                        non_empty_columns = [
+                            col for col in ref_df.columns if any(str(v).strip() for v in ref_df[col].dropna().tolist())
+                        ]
+                        if non_empty_columns:
+                            resolved_column = non_empty_columns[0]
+                        else:
+                            raise ValueError(
+                                f"Aucune colonne valide trouvee dans la feuille '{sheet_name}'."
+                            )
 
-                    raise ValueError(
-
-                        f"Plusieurs colonnes nommees '{sheet_name}' dans la feuille '{sheet_name}'."
-
-                    )
+                allowed_values = {
+                    str(val).strip().upper()
+                    for val in ref_df[resolved_column].dropna().tolist()
+                    if str(val).strip()
+                }
 
 
 
@@ -771,7 +797,19 @@ def generate_result_from_excel(input_file: str, output_dir: str, rules_override:
             elif allowed_type == "list":
                 allowed_cell = ""
             else:
-                allowed_cell = str(rule.get("allowedInstruction", "") or "").strip()
+                # Instruction mode: either sheet or custom instruction
+                mode = str(rule.get("allowedInstructionMode", "custom")).lower()
+                if mode == "sheet":
+                    sheet_name = str(rule.get("allowedSheet", "") or "").strip()
+                    column_name = str(rule.get("allowedColumn", "") or "").strip()
+                    if sheet_name and column_name:
+                        allowed_cell = f"SHEET={sheet_name};COLUMN={column_name}"
+                    elif sheet_name:
+                        allowed_cell = f"SHEET={sheet_name}"
+                    else:
+                        allowed_cell = ""
+                else:
+                    allowed_cell = str(rule.get("allowedInstruction", "") or "").strip()
 
             min_length = rule.get("minLength")
             max_length = rule.get("maxLength")
