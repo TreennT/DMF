@@ -604,7 +604,7 @@ export default function HomePage() {
     status.type === "validationError" ||
     status.type === "validationFailed" ||
     status.type === "networkError" ||
-    status.type === "readError";
+
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 transition-colors duration-300 dark:bg-slate-950 md:p-10">
