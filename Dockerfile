@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 
 FROM node:20-bullseye AS builder
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
 WORKDIR /app
 
 COPY frontend/package.json frontend/package-lock.json* ./frontend/
@@ -11,6 +13,9 @@ RUN cd frontend && npm run build
 FROM node:20-bullseye AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PYTHONIOENCODING=UTF-8
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip python3-tk python-is-python3 \

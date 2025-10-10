@@ -1,0 +1,13 @@
+# Enforce LF endings and UTF-8 text in the repo
+* text=auto eol=lf
+
+# Common source files
+*.{ts,tsx,js,jsx,css,md,json} text eol=lf
+
+# Keep binary files untouched
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg text eol=lf
+
