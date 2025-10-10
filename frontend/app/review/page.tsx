@@ -9,7 +9,7 @@ import type { Translation } from "../../components/language-provider";
 
 const truthyValues = new Set(["true", "1", "yes", "oui", "y", "x"]);
 
-type AllowedType = "list" | "instruction";
+type AllowedMode = "none" | "valueList" | "sheetLookup" | "customInstruction";
 
 function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -28,9 +28,10 @@ type RuleRow = {
   required: boolean;
   minLength?: number;
   maxLength?: number;
-  allowedType: AllowedType;
+  allowedMode: AllowedMode;
   allowedValues: string[];
   allowedInstruction: string;
+  allowedSheet?: string;
   pattern?: string;
   customRule?: string;
 };
@@ -41,9 +42,10 @@ type RulePayload = {
   required: boolean;
   minLength: number | null;
   maxLength: number | null;
-  allowedType: AllowedType;
+  allowedType: "list" | "instruction";
   allowedValues: string[];
   allowedInstruction: string;
+  allowedSheet?: string;
   pattern: string;
   customRule: string;
 };
@@ -158,6 +160,47 @@ function parseNumberInput(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+type CustomRulePattern = Translation["rules"]["customRule"]["patterns"][number];
+
+function resolveCustomRulePattern(
+  value: string,
+  patterns: Translation["rules"]["customRule"]["patterns"],
+): CustomRulePattern | null {
+  if (!Array.isArray(patterns) || patterns.length === 0) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  for (const pattern of patterns) {
+    const id = pattern.id.toLowerCase();
+    switch (id) {
+      case "equals":
+        if (normalized.startsWith("equals:")) {
+          return pattern;
+        }
+        break;
+      case "unique_per":
+        if (normalized.startsWith("unique_per:")) {
+          return pattern;
+        }
+        break;
+      case "unique":
+        if (normalized.startsWith("unique:")) {
+          return pattern;
+        }
+        break;
+      default:
+        if (normalized.startsWith(`${id}:`)) {
+          return pattern;
+        }
+        break;
+    }
+  }
+  return null;
+}
+
 function mapRowsToRules(jsonRows: Record<string, unknown>[]): RuleRow[] {
   return jsonRows.reduce<RuleRow[]>((acc, row) => {
     const fieldValue = row["Field"];
@@ -170,8 +213,11 @@ function mapRowsToRules(jsonRows: Record<string, unknown>[]): RuleRow[] {
     const allowedRaw = typeof allowedValue === "string" ? allowedValue.trim() : "";
     let allowedValues: string[] = [];
     let allowedInstruction = "";
+    let allowedSheet: string | undefined;
+    let allowedMode: AllowedMode = "none";
     if (allowedRaw) {
       if (allowedRaw.toUpperCase().startsWith("VALUE=")) {
+        allowedMode = "valueList";
         allowedValues = allowedRaw
           .slice(6)
           .split(";")
@@ -179,10 +225,15 @@ function mapRowsToRules(jsonRows: Record<string, unknown>[]): RuleRow[] {
           .filter((entry) => entry.length > 0);
       } else {
         allowedInstruction = allowedRaw;
+        const sheetMatch = allowedInstruction.match(/^SHEET\s*=\s*([^;]+)$/i);
+        if (sheetMatch) {
+          allowedSheet = sheetMatch[1].trim();
+          allowedMode = allowedSheet ? "sheetLookup" : "sheetLookup";
+        } else {
+          allowedMode = "customInstruction";
+        }
       }
     }
-
-    const allowedType: AllowedType = allowedValues.length > 0 ? "list" : "instruction";
 
     const pattern = row["Pattern"] ? String(row["Pattern"]).trim() : "";
     const customRule = row["CustomRule"] ? String(row["CustomRule"]).trim() : "";
@@ -194,9 +245,10 @@ function mapRowsToRules(jsonRows: Record<string, unknown>[]): RuleRow[] {
       required: toBoolean(row["Required"]),
       minLength: toNumber(row["MinLength"]),
       maxLength: toNumber(row["MaxLength"]),
-      allowedType,
+      allowedMode,
       allowedValues,
-      allowedInstruction: allowedType === "instruction" ? allowedInstruction : "",
+      allowedInstruction: allowedMode === "customInstruction" ? allowedInstruction : allowedMode === "sheetLookup" ? allowedInstruction : "",
+      allowedSheet,
       pattern: pattern || undefined,
       customRule: customRule || undefined,
     });
@@ -212,10 +264,31 @@ function serializeRulesForBackend(rules: RuleRow[]): RulePayload[] {
       if (!field) {
         return null;
       }
-      const allowedValues =
-        rule.allowedType === "list"
-          ? rule.allowedValues.map((value) => value.trim()).filter((value) => value.length > 0)
-          : [];
+      let allowedType: "list" | "instruction" = "instruction";
+      let allowedValues: string[] = [];
+      let allowedInstruction = "";
+      let allowedSheet: string | undefined;
+
+      switch (rule.allowedMode) {
+        case "valueList":
+          allowedType = "list";
+          allowedValues = rule.allowedValues
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0);
+          break;
+        case "sheetLookup": {
+          const sheet = rule.allowedSheet?.trim() ?? "";
+          allowedInstruction = sheet ? `SHEET=${sheet}` : "";
+          allowedSheet = sheet || undefined;
+          break;
+        }
+        case "customInstruction":
+          allowedInstruction = rule.allowedInstruction.trim();
+          break;
+        case "none":
+        default:
+          break;
+      }
 
       return {
         field,
@@ -223,9 +296,10 @@ function serializeRulesForBackend(rules: RuleRow[]): RulePayload[] {
         required: rule.required,
         minLength: rule.minLength ?? null,
         maxLength: rule.maxLength ?? null,
-        allowedType: rule.allowedType,
+        allowedType,
         allowedValues,
-        allowedInstruction: rule.allowedType === "instruction" ? rule.allowedInstruction.trim() : "",
+        allowedInstruction,
+        allowedSheet,
         pattern: rule.pattern?.trim() ?? "",
         customRule: rule.customRule?.trim() ?? "",
       } satisfies RulePayload;
@@ -241,9 +315,10 @@ function createRuleFromField(field: string): RuleRow {
     required: false,
     minLength: undefined,
     maxLength: undefined,
-    allowedType: "list",
+    allowedMode: "none",
     allowedValues: [],
     allowedInstruction: "",
+    allowedSheet: undefined,
     pattern: undefined,
     customRule: undefined,
   };
@@ -289,13 +364,26 @@ export default function HomePage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [rulesEdited, setRulesEdited] = useState<boolean>(false);
   const [rulesOpen, setRulesOpen] = useState<boolean>(false);
+  const [availableSheets, setAvailableSheets] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const statusMessage = resolveStatusMessage(status, statuses);
 
   const hasMissingField = useMemo(() => rules.some((rule) => !rule.field.trim()), [rules]);
   const hasDetailIssue = useMemo(
-    () => rules.some((rule) => rule.allowedType === "instruction" && !rule.allowedInstruction.trim()),
+    () =>
+      rules.some((rule) => {
+        switch (rule.allowedMode) {
+          case "valueList":
+            return rule.allowedValues.length === 0;
+          case "sheetLookup":
+            return !(rule.allowedSheet?.trim());
+          case "customInstruction":
+            return !rule.allowedInstruction.trim();
+          default:
+            return false;
+        }
+      }),
     [rules],
   );
 
@@ -320,6 +408,7 @@ export default function HomePage() {
     setRulesEdited(false);
     setRulesOpen(false);
     setReportUrl(null);
+    setAvailableSheets([]);
     setStatus(nextStatus);
   }
 
@@ -328,19 +417,50 @@ export default function HomePage() {
       prev.map((rule) => {
         if (rule.id !== id) return rule;
         const next: RuleRow = { ...rule, ...updates };
-        if (updates.allowedType) {
-          if (updates.allowedType === "list") {
-            next.allowedInstruction = "";
-          } else {
-            next.allowedValues = [];
+
+        if (updates.allowedMode) {
+          switch (updates.allowedMode) {
+            case "valueList":
+              next.allowedInstruction = "";
+              next.allowedSheet = undefined;
+              break;
+            case "sheetLookup":
+              next.allowedValues = [];
+              break;
+            case "customInstruction":
+              next.allowedValues = [];
+              next.allowedSheet = undefined;
+              break;
+            case "none":
+            default:
+              next.allowedValues = [];
+              next.allowedInstruction = "";
+              next.allowedSheet = undefined;
+              break;
           }
         }
-        if (next.allowedType === "list" && updates.allowedInstruction !== undefined) {
-          next.allowedInstruction = "";
-        }
-        if (next.allowedType === "instruction" && updates.allowedValues !== undefined) {
+
+        if (next.allowedMode !== "valueList") {
+          next.allowedValues = [];
+        } else if (!Array.isArray(next.allowedValues)) {
           next.allowedValues = [];
         }
+
+        if (next.allowedMode === "sheetLookup") {
+          const sheet = updates.allowedSheet ?? next.allowedSheet ?? "";
+          const trimmedSheet = typeof sheet === "string" ? sheet.trim() : "";
+          next.allowedSheet = trimmedSheet ? trimmedSheet : undefined;
+          next.allowedInstruction = next.allowedSheet ? `SHEET=${next.allowedSheet}` : "";
+        } else if (next.allowedMode === "customInstruction") {
+          next.allowedSheet = undefined;
+          if (typeof next.allowedInstruction !== "string") {
+            next.allowedInstruction = "";
+          }
+        } else {
+          next.allowedSheet = undefined;
+          next.allowedInstruction = "";
+        }
+
         return next;
       }),
     );
@@ -376,6 +496,11 @@ export default function HomePage() {
       const workbook = XLSX.read(data);
       const validationSheet = workbook.Sheets["ValidationRules"];
       const templateSheet = workbook.Sheets["Template"];
+      const sheetNames = (workbook.SheetNames ?? [])
+        .map((name) => (typeof name === "string" ? name.trim() : String(name ?? "").trim()))
+        .filter((name) => name.length > 0);
+      const uniqueSheetNames = Array.from(new Set(sheetNames));
+      setAvailableSheets(uniqueSheetNames);
 
       const mappedRules = validationSheet
         ? mapRowsToRules(
@@ -558,9 +683,67 @@ export default function HomePage() {
                   </summary>
 
                   <div className="mt-6 space-y-6">
-                    <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-950/40 dark:text-slate-300">
+                  <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-950/40 dark:text-slate-300">
                       <p className="font-medium">{rulesText.description}</p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.helper}</p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                      <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">{rulesText.guide.title}</h3>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.guide.intro}</p>
+                      <div className="mt-4 grid gap-5 md:grid-cols-2">
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            {rulesText.guide.columnsTitle}
+                          </h4>
+                          <ul className="mt-2 space-y-2">
+                            {(rulesText.guide.columns ?? []).map((item) => (
+                              <li
+                                key={`guide-column-${item.name}`}
+                                className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600 dark:bg-slate-950/40 dark:text-slate-300"
+                              >
+                                <span className="font-semibold text-slate-800 dark:text-slate-100">{item.name}</span>
+                                <span className="mt-1 block text-slate-600 dark:text-slate-300">{item.description}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                            {rulesText.guide.allowedTitle}
+                          </h4>
+                          <ul className="mt-2 space-y-2">
+                            {(rulesText.guide.allowedItems ?? []).map((item) => (
+                              <li
+                                key={`guide-allowed-${item.name}`}
+                                className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600 dark:bg-slate-950/40 dark:text-slate-300"
+                              >
+                                <span className="font-semibold text-slate-800 dark:text-slate-100">{item.name}</span>
+                                <span className="mt-1 block text-slate-600 dark:text-slate-300">{item.description}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          {rulesText.guide.customRulesTitle}
+                        </h4>
+                        <div className="mt-2 grid gap-3 md:grid-cols-3">
+                          {(rulesText.customRule.patterns ?? []).map((pattern) => (
+                            <div
+                              key={`guide-pattern-${pattern.id}`}
+                              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-relaxed text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300"
+                            >
+                              <p className="font-semibold text-slate-800 dark:text-slate-100">{pattern.signature}</p>
+                              <p className="mt-1">{pattern.description}</p>
+                              {pattern.details ? (
+                                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{pattern.details}</p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
                     {rules.length === 0 ? (
@@ -578,8 +761,30 @@ export default function HomePage() {
                       <div className="space-y-5">
                         {rules.map((rule, index) => {
                           const fieldIsEmpty = rule.field.trim().length === 0;
-                          const instructionEmpty =
-                            rule.allowedType === "instruction" && rule.allowedInstruction.trim().length === 0;
+                          const instructionEmpty = (() => {
+                            switch (rule.allowedMode) {
+                              case "valueList":
+                                return rule.allowedValues.length === 0;
+                              case "sheetLookup":
+                                return !(rule.allowedSheet?.trim());
+                              case "customInstruction":
+                                return !rule.allowedInstruction.trim();
+                              default:
+                                return false;
+                            }
+                          })();
+                          const sheetOptions =
+                            rule.allowedSheet && !availableSheets.includes(rule.allowedSheet)
+                              ? [rule.allowedSheet, ...availableSheets]
+                              : availableSheets;
+                          const allowedModeInfo =
+                            (rulesText.allowed.modes as Record<string, { label: string; description?: string }> | undefined)?.[
+                              rule.allowedMode
+                            ];
+                          const customRuleInfo = resolveCustomRulePattern(
+                            rule.customRule ?? "",
+                            rulesText.customRule.patterns ?? [],
+                          );
 
                           return (
                             <div
@@ -691,29 +896,57 @@ export default function HomePage() {
                                       className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
                                       placeholder={rulesText.customRule.placeholder}
                                     />
+                                    {rulesText.customRule.helper ? (
+                                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        {rulesText.customRule.helper}
+                                      </p>
+                                    ) : null}
+                                    {customRuleInfo ? (
+                                      <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-200">
+                                        <p className="font-semibold">{customRuleInfo.signature}</p>
+                                        <p className="mt-1 leading-relaxed">{customRuleInfo.description}</p>
+                                        {customRuleInfo.details ? (
+                                          <p className="mt-1 text-[11px] leading-relaxed text-emerald-600 dark:text-emerald-200/90">
+                                            {customRuleInfo.details}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
                                   </div>
 
                                   <div className="space-y-4">
                                     <div>
                                       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        {rulesText.allowed.label}
+                                        {rulesText.allowed.modeLabel}
                                       </label>
                                       <select
-                                        value={rule.allowedType}
+                                        value={rule.allowedMode}
                                         onChange={(event) =>
-                                          updateRule(rule.id, { allowedType: event.target.value as AllowedType })
+                                          updateRule(rule.id, { allowedMode: event.target.value as AllowedMode })
                                         }
                                         className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                                       >
-                                        <option value="list">{rulesText.allowed.options.list}</option>
-                                        <option value="instruction">{rulesText.allowed.options.instruction}</option>
+                                        {Object.entries(rulesText.allowed.modes ?? {}).map(([mode, option]) => (
+                                          <option key={`${rule.id}-${mode}`} value={mode}>
+                                            {option.label}
+                                          </option>
+                                        ))}
                                       </select>
+                                      {rulesText.allowed.modeHelper ? (
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.modeHelper}</p>
+                                      ) : null}
                                     </div>
 
-                                    {rule.allowedType === "list" ? (
+                                    {allowedModeInfo?.description ? (
+                                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300">
+                                        {allowedModeInfo.description}
+                                      </div>
+                                    ) : null}
+
+                                    {rule.allowedMode === "valueList" ? (
                                       <div>
                                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                          {rulesText.allowed.valuesLabel}
+                                          {rulesText.allowed.valueList?.valuesLabel}
                                         </label>
                                         <textarea
                                           value={rule.allowedValues.join("\n")}
@@ -725,10 +958,18 @@ export default function HomePage() {
                                                 .filter((value) => value.length > 0),
                                             })
                                           }
-                                          className="mt-2 h-28 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                                          placeholder={rulesText.allowed.valuesPlaceholder}
+                                          className={`mt-2 h-28 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${
+                                            instructionEmpty
+                                              ? "border-red-300 focus:border-red-400 dark:border-red-700"
+                                              : "border-slate-200 focus:border-emerald-400"
+                                          }`}
+                                          placeholder={rulesText.allowed.valueList?.valuesPlaceholder}
                                         />
-                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.valuesHint}</p>
+                                        {rulesText.allowed.valueList?.valuesHint ? (
+                                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            {rulesText.allowed.valueList.valuesHint}
+                                          </p>
+                                        ) : null}
                                         {rule.allowedValues.length > 0 ? (
                                           <div className="mt-3 flex flex-wrap gap-2">
                                             {rule.allowedValues.map((value) => (
@@ -742,24 +983,92 @@ export default function HomePage() {
                                           </div>
                                         ) : null}
                                       </div>
-                                    ) : (
+                                    ) : null}
+
+                                    {rule.allowedMode === "sheetLookup" ? (
+                                      <div className="space-y-2">
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                          {rulesText.allowed.sheetLookup?.sheetLabel}
+                                        </label>
+                                        <div className="flex flex-col gap-2 sm:flex-row">
+                                          {sheetOptions.length > 0 ? (
+                                            <select
+                                              value={rule.allowedSheet ?? ""}
+                                              onChange={(event) =>
+                                                updateRule(rule.id, {
+                                                  allowedSheet: event.target.value,
+                                                })
+                                              }
+                                              className={`w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 ${
+                                                instructionEmpty
+                                                  ? "border-red-300 focus:border-red-400 dark:border-red-700"
+                                                  : "border-slate-200 focus:border-emerald-400"
+                                              }`}
+                                            >
+                                              <option value="">{rulesText.allowed.sheetLookup?.sheetPlaceholder}</option>
+                                              {sheetOptions.map((sheet) => (
+                                                <option key={`${rule.id}-sheet-${sheet}`} value={sheet}>
+                                                  {sheet}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          ) : null}
+                                          <input
+                                            type="text"
+                                            value={rule.allowedSheet ?? ""}
+                                            onChange={(event) =>
+                                              updateRule(rule.id, {
+                                                allowedSheet: event.target.value,
+                                              })
+                                            }
+                                            placeholder={rulesText.allowed.sheetLookup?.sheetCustomPlaceholder}
+                                            className={`w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${
+                                              instructionEmpty
+                                                ? "border-red-300 focus:border-red-400 dark:border-red-700"
+                                                : "border-slate-200 focus:border-emerald-400"
+                                            }`}
+                                          />
+                                        </div>
+                                        {rulesText.allowed.sheetLookup?.helper ? (
+                                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                                            {rulesText.allowed.sheetLookup.helper}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+
+                                    {rule.allowedMode === "customInstruction" ? (
                                       <div>
                                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                          {rulesText.allowed.instructionLabel}
+                                          {rulesText.allowed.customInstruction?.instructionLabel}
                                         </label>
                                         <textarea
                                           value={rule.allowedInstruction}
-                                          onChange={(event) => updateRule(rule.id, { allowedInstruction: event.target.value })}
+                                          onChange={(event) =>
+                                            updateRule(rule.id, {
+                                              allowedInstruction: event.target.value,
+                                            })
+                                          }
                                           className={`mt-2 h-28 w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400 ${
                                             instructionEmpty
                                               ? "border-red-300 focus:border-red-400 dark:border-red-700"
                                               : "border-slate-200 focus:border-emerald-400"
                                           }`}
-                                          placeholder={rulesText.allowed.instructionPlaceholder}
+                                          placeholder={rulesText.allowed.customInstruction?.instructionPlaceholder}
                                         />
-                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rulesText.allowed.instructionHint}</p>
+                                        {rulesText.allowed.customInstruction?.helper ? (
+                                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            {rulesText.allowed.customInstruction.helper}
+                                          </p>
+                                        ) : null}
                                       </div>
-                                    )}
+                                    ) : null}
+
+                                    {rule.allowedMode === "none" ? (
+                                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300">
+                                        {rulesText.allowed.noneMessage}
+                                      </div>
+                                    ) : null}
                                   </div>
                                 </div>
 
