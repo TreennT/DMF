@@ -816,8 +816,7 @@ export default function HomePage() {
 
                                   <details className="mt-4" open={false}><summary className="cursor-pointer text-sm font-semibold">{(rulesText as any).sections?.allowedTitle ?? ((rulesText.allowed as any).valuesLabel ?? "Allowed values")}</summary>
                                   <div className="space-y-4">
-                                  </details>
-                                    <div>
+                                  <div>
                                       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                         {rulesText.allowed.label}
                                       </label>
@@ -1051,6 +1050,7 @@ export default function HomePage() {
     </main>
   );
 }
+
 
 
 
