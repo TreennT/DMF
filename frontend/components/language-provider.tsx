@@ -434,7 +434,7 @@ const translations = {
 
       countLabel: (count: number) => `${count} rÃ¨gle${count > 1 ? "s" : ""}`,
 
-      ruleLabel: (index: number) => Ã¨gle ${index}`,
+      ruleLabel: (index: number) => `Regle ${index}`,
 
       addButton: "Ajouter une rÃ¨gle",
 
@@ -762,7 +762,7 @@ const translations = {
 
         removeButton: "Delete",
 
-        ruleLabel: (index: number) => ule ${index}`,
+        ruleLabel: (index: number) => `Rule ${index}`,
 
         targetLabel: "Target column",
 
@@ -1004,7 +1004,7 @@ const translations = {
 
       countLabel: (count: number) => `${count} rule${count === 1 ? "" : "s"}`,
 
-      ruleLabel: (index: number) => ule ${index}`,
+      ruleLabel: (index: number) => `Rule ${index}`,
 
       addButton: "Add a rule",
 
