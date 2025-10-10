@@ -956,6 +956,7 @@ export default function HomePage() {
                                       </div>
                                     )}
                                   </div>
+                                  </details>
                                 </div>
 
                                 <button
