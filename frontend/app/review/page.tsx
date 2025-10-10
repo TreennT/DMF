@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
@@ -740,80 +740,86 @@ export default function HomePage() {
                                     ) : null}
                                   </div>
 
-                                  <div className="grid gap-3 sm:grid-cols-2">
-                                  <details className="mt-4" open={false}><summary className="cursor-pointer text-sm font-semibold">{(rulesText as any).sections?.advancedTitle ?? rulesText.customRule.label}</summary>
-                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-                                      <input
-                                        type="checkbox"
-                                        checked={rule.checked}
-                                        onChange={(event) => updateRule(rule.id, { checked: event.target.checked })}
-                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900 dark:text-emerald-400 dark:focus:ring-emerald-400"
-                                      />
-                                      {rulesText.toggles.checked}
-                                    </label>
-                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-                                      <input
-                                        type="checkbox"
-                                        checked={rule.required}
-                                        onChange={(event) => updateRule(rule.id, { required: event.target.checked })}
-                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900 dark:text-emerald-400 dark:focus:ring-emerald-400"
-                                      />
-                                      {rulesText.toggles.required}
-                                    </label>
-                                  </div>
+                                  <details className="mt-4">
+                                    <summary className="cursor-pointer text-sm font-semibold">
+                                      {(rulesText as any).sections?.advancedTitle ?? rulesText.customRule.label}
+                                    </summary>
+                                    <div className="mt-3 space-y-4">
+                                      <div className="grid gap-3 sm:grid-cols-2">
+                                        <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                          <input
+                                            type="checkbox"
+                                            checked={rule.checked}
+                                            onChange={(event) => updateRule(rule.id, { checked: event.target.checked })}
+                                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900 dark:text-emerald-400 dark:focus:ring-emerald-400"
+                                          />
+                                          {rulesText.toggles.checked}
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                          <input
+                                            type="checkbox"
+                                            checked={rule.required}
+                                            onChange={(event) => updateRule(rule.id, { required: event.target.checked })}
+                                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-900 dark:text-emerald-400 dark:focus:ring-emerald-400"
+                                          />
+                                          {rulesText.toggles.required}
+                                        </label>
+                                      </div>
 
-                                  <div className="grid gap-4 sm:grid-cols-2">
-                                    <div>
-                                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        {rulesText.length.minLabel}
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={rule.minLength ?? ""}
-                                        onChange={(event) =>
-                                          updateRule(rule.id, { minLength: parseNumberInput(event.target.value) })
-                                        }
-                                        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                                        placeholder={rulesText.length.placeholder}
-                                      />
+                                      <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                            {rulesText.length.minLabel}
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={rule.minLength ?? ""}
+                                            onChange={(event) =>
+                                              updateRule(rule.id, { minLength: parseNumberInput(event.target.value) })
+                                            }
+                                            className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                            placeholder={rulesText.length.placeholder}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                            {rulesText.length.maxLabel}
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={rule.maxLength ?? ""}
+                                            onChange={(event) =>
+                                              updateRule(rule.id, { maxLength: parseNumberInput(event.target.value) })
+                                            }
+                                            className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                            placeholder={rulesText.length.placeholder}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                          {rulesText.customRule.label}
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={rule.customRule ?? ""}
+                                          onChange={(event) =>
+                                            updateRule(rule.id, { customRule: event.target.value || undefined })
+                                          }
+                                          className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
+                                          placeholder={rulesText.customRule.placeholder}
+                                        />
+                                      </div>
                                     </div>
-                                    <div>
-                                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                        {rulesText.length.maxLabel}
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={rule.maxLength ?? ""}
-                                        onChange={(event) =>
-                                          updateRule(rule.id, { maxLength: parseNumberInput(event.target.value) })
-                                        }
-                                        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                                        placeholder={rulesText.length.placeholder}
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {null}
-
-                                  <div>
-                                    <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                      {rulesText.customRule.label}
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={rule.customRule ?? ""}
-                                      onChange={(event) =>
-                                        updateRule(rule.id, { customRule: event.target.value || undefined })
-                                      }
-                                      className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-400"
-                                      placeholder={rulesText.customRule.placeholder}
-                                    />
-                                  </div>
                                   </details>
 
-                                  <details className="mt-4" open={false}><summary className="cursor-pointer text-sm font-semibold">{(rulesText as any).sections?.allowedTitle ?? ((rulesText.allowed as any).valuesLabel ?? "Allowed values")}</summary>
-                                  <div className="mt-3 space-y-4">
-                                  <div>
+                                  <details className="mt-4">
+                                    <summary className="cursor-pointer text-sm font-semibold">
+                                      {(rulesText as any).sections?.allowedTitle ?? ((rulesText.allowed as any).valuesLabel ?? "Allowed values")}
+                                    </summary>
+                                    <div className="mt-3 space-y-4">
+                                      <div>
                                       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                         {rulesText.allowed.label}
                                       </label>
