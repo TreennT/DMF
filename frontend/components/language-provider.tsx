@@ -511,11 +511,10 @@ const translations = {
         label: "Source des valeurs autorisÃ©es",
 
         options: {
-
+          any: "Toutes valeurs",
+          sheet: "Feuille",
           list: "Liste de valeurs",
-
           instruction: "Instruction (VALUE=, SHEET=, etc.)",
-
         },
 
         valuesLabel: "Valeurs autorisÃ©es",
@@ -1081,11 +1080,10 @@ const translations = {
         label: "Source of allowed values",
 
         options: {
-
+          any: "Any value",
+          sheet: "Sheet",
           list: "Value list",
-
           instruction: "Instruction (VALUE=, SHEET=, etc.)",
-
         },
 
         valuesLabel: "Allowed values",
