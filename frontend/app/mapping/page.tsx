@@ -803,17 +803,22 @@ export default function MappingPage() {
                                       {mapping.rules.typeDescriptions[rule.type]}
                                     </p>
                                   </div>
-                                  <div className="space-y-2">
-                                    {renderRuleFields(rule)}
-                                    {missingDetails ? (
-                                      <p className="text-xs text-red-600 dark:text-red-400">
-                                        {mapping.rules.detailError}
+                                  <details className="mt-3" open={false}>
+                                    <summary className="cursor-pointer text-sm font-semibold">
+                                      {(mapping.rules as any).sections?.detailsTitle ?? "Rule details"}
+                                    </summary>
+                                    <div className="mt-2 space-y-2">
+                                      {renderRuleFields(rule)}
+                                      {missingDetails ? (
+                                        <p className="text-xs text-red-600 dark:text-red-400">
+                                          {mapping.rules.detailError}
+                                        </p>
+                                      ) : null}
+                                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {mapping.rules.examples[rule.type]}
                                       </p>
-                                    ) : null}
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                      {mapping.rules.examples[rule.type]}
-                                    </p>
-                                  </div>
+                                    </div>
+                                  </details>
                                 </div>
                                 <button
                                   type="button"
